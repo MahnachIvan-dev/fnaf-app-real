@@ -12,7 +12,7 @@ let S = null;
 let connected = false;
 const $ = id => document.getElementById(id);
 
-// ===== ЗВУКИ АНИМАТРОНИКА =====
+// ===== ВСЕ ЗВУКИ АНИМАТРОНИКА =====
 function au(src, loop, vol) {
     const a = new Audio(src);
     a.loop = !!loop;
@@ -21,6 +21,9 @@ function au(src, loop, vol) {
 }
 
 const snd = {
+    nightStart: au('https://files.catbox.moe/8y8z75.mp3', false, 0.5), // Старт ночи
+    winMelody:  au('https://files.catbox.moe/win_melody.mp3', false, 0.5),  // Триумфальная музыка
+
     pwrOut: au('/audio/power_out.mp3', false, 0.6),
     pwrOn:  au('/audio/power_on.mp3', false, 0.6),
     scare:  au('/audio/jumpscare.mp3', false, 0.9),
@@ -28,6 +31,7 @@ const snd = {
 };
 
 function play(a) { try { a.currentTime = 0; a.play(); } catch(e) {} }
+function stop(a) { try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
 // Connect
 $('btnConnect').addEventListener('click', () => {
@@ -104,35 +108,45 @@ function updateUI(st) {
     }
 }
 
-// ===== ЗВУКИ НА СТРАНИЦЕ АНИМАТРОНИКА =====
+// ===== СОБЫТИЯ И ЗВУКИ =====
 
-// ← ЗВУК: выключение света
+// НАЧАЛО ИГРЫ
+socket.on('gameStarted', st => {
+    play(snd.nightStart);
+    updateUI(st);
+});
+
 socket.on('powerOut', st => {
+    stop(snd.nightStart);
     play(snd.pwrOut);
     updateUI(st);
 });
 
-// ← ЗВУК: включение света
 socket.on('rebootApproved', st => {
     play(snd.pwrOn);
     $('pReboot').style.display = 'none';
     updateUI(st);
 });
 
-// ← ЗВУК: победа (охранник выжил)
+// ПОБЕДА (охранник выжил)
 socket.on('gameWon', () => {
+    stop(snd.nightStart);
     play(snd.win);
     $('winEnd').classList.add('on');
+
+    snd.win.onended = () => {
+        play(snd.winMelody);
+    };
 });
 
-// ← ЗВУК: проигрыш (аниматроник поймал)
+// ПРОИГРЫШ (аниматроник поймал)
 socket.on('gameLost', () => {
+    stop(snd.nightStart);
     play(snd.scare);
     $('loseEnd').classList.add('on');
 });
 
 socket.on('gameState', updateUI);
-socket.on('gameStarted', updateUI);
 socket.on('cameraBrokenNotify', d => updateUI(d.state));
 socket.on('cameraRepairedNotify', d => updateUI(d.state));
 

@@ -10,16 +10,29 @@ if (!gameId) {
 
 let S = null;
 let connected = false;
-
 const $ = id => document.getElementById(id);
 
-// Connect
-$('btnConnect').addEventListener('click', doConnect);
+// ===== ЗВУКИ АНИМАТРОНИКА =====
+function au(src, loop, vol) {
+    const a = new Audio(src);
+    a.loop = !!loop;
+    a.volume = vol !== undefined ? vol : 0.4;
+    return a;
+}
 
-function doConnect() {
+const snd = {
+    pwrOut: au('/audio/power_out.mp3', false, 0.6),
+    pwrOn:  au('/audio/power_on.mp3', false, 0.6),
+    scare:  au('/audio/jumpscare.mp3', false, 0.9),
+    win:    au('/audio/win.mp3', false, 0.7)
+};
+
+function play(a) { try { a.currentTime = 0; a.play(); } catch(e) {} }
+
+// Connect
+$('btnConnect').addEventListener('click', () => {
     const name = $('animName').value || 'Freddy';
     $('connectMsg').textContent = 'Connecting...';
-
     socket.emit('joinAsAnimatronic', { gameId, name }, res => {
         if (!res.success) {
             $('connectMsg').textContent = 'Error: ' + (res.error || '');
@@ -31,23 +44,20 @@ function doConnect() {
         $('pSabotage').style.display = 'block';
         $('pAttack').style.display = 'block';
     });
-}
+});
 
-// Kill power
 $('btnKillPwr').addEventListener('click', () => {
     socket.emit('killPower', { gameId });
     $('btnKillPwr').disabled = true;
     $('btnKillPwr').textContent = '⚡ POWER KILLED';
 });
 
-// Jumpscare
 $('btnScare').addEventListener('click', () => {
     if (confirm('Trigger jumpscare? This ends the game!')) {
         socket.emit('jumpscare', { gameId });
     }
 });
 
-// Reboot approve/deny
 $('btnApprove').addEventListener('click', () => {
     socket.emit('approveReboot', { gameId });
     $('pReboot').style.display = 'none';
@@ -60,37 +70,26 @@ $('btnDeny').addEventListener('click', () => {
     $('pReboot').style.display = 'none';
 });
 
-// Break camera
 window.breakCam = function(i) {
     socket.emit('breakCamera', { gameId, camIndex: i });
 };
 
-// State updates
 function updateUI(st) {
     if (!st || !connected) return;
     S = st;
-
     $('aTime').textContent = st.hourString;
-
     const p = Math.round(st.power);
     $('aPwr').textContent = p + '%';
     $('aPwr').style.color = p <= 15 ? 'var(--red)' : p <= 40 ? 'var(--yellow)' : 'var(--green)';
-
     $('aCams').textContent = st.camerasUp ? 'UP 👁️' : 'DOWN';
     $('aCams').style.color = st.camerasUp ? 'var(--green)' : 'var(--red)';
-
     let dh = 'Doors: ';
     st.doors.forEach((d, i) => {
-        const c = d.closed ? 'var(--red)' : 'var(--green)';
-        const t = d.closed ? 'CLOSED' : 'OPEN';
-        dh += `D${i+1}:<span style="color:${c}"> ${t}</span> `;
+        dh += `D${i+1}:<span style="color:${d.closed?'var(--red)':'var(--green)'}"> ${d.closed?'CLOSED':'OPEN'}</span> `;
     });
     $('aDoors').innerHTML = dh;
-
     $('aSys').textContent = st.systemOff ? 'OFF ❌' : 'ON ✓';
     $('aSys').style.color = st.systemOff ? 'var(--red)' : 'var(--green)';
-
-    // Camera buttons
     let ch = '';
     st.cameras.forEach((cam, i) => {
         if (!cam.connected) return;
@@ -99,16 +98,41 @@ function updateUI(st) {
         ch += `<button class="anim-btn" onclick="breakCam(${i})" ${dis}>${txt}</button>`;
     });
     $('camActions').innerHTML = ch;
-
     if (st.systemOff) {
         $('btnKillPwr').disabled = true;
         $('btnKillPwr').textContent = '⚡ POWER IS OFF';
     }
 }
 
+// ===== ЗВУКИ НА СТРАНИЦЕ АНИМАТРОНИКА =====
+
+// ← ЗВУК: выключение света
+socket.on('powerOut', st => {
+    play(snd.pwrOut);
+    updateUI(st);
+});
+
+// ← ЗВУК: включение света
+socket.on('rebootApproved', st => {
+    play(snd.pwrOn);
+    $('pReboot').style.display = 'none';
+    updateUI(st);
+});
+
+// ← ЗВУК: победа (охранник выжил)
+socket.on('gameWon', () => {
+    play(snd.win);
+    $('winEnd').classList.add('on');
+});
+
+// ← ЗВУК: проигрыш (аниматроник поймал)
+socket.on('gameLost', () => {
+    play(snd.scare);
+    $('loseEnd').classList.add('on');
+});
+
 socket.on('gameState', updateUI);
 socket.on('gameStarted', updateUI);
-socket.on('powerOut', updateUI);
 socket.on('cameraBrokenNotify', d => updateUI(d.state));
 socket.on('cameraRepairedNotify', d => updateUI(d.state));
 
@@ -117,17 +141,9 @@ socket.on('rebootWaitingApproval', st => {
     $('pReboot').style.display = 'block';
 });
 
-socket.on('rebootApproved', st => {
-    $('pReboot').style.display = 'none';
-    updateUI(st);
-});
-
 socket.on('rebootDenied', st => {
     $('pReboot').style.display = 'none';
     updateUI(st);
 });
-
-socket.on('gameWon', () => $('winEnd').classList.add('on'));
-socket.on('gameLost', () => $('loseEnd').classList.add('on'));
 
 })();

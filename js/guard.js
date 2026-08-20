@@ -4,39 +4,61 @@ const params = new URLSearchParams(location.search);
 const gameId = params.get('game');
 
 if (!gameId) {
-    document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;font-family:monospace;">No game ID. Create a game first at /</div>';
+    document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;font-family:monospace;">No game ID.</div>';
     return;
 }
 
-let S = null; // game state
+let S = null;
 let mode = 1;
 let camsUp = false;
 let curCam = 0;
 let rebooting = false;
 let rebootT0 = 0;
 
-// Audio
-function au(src, loop) { const a = new Audio(src); a.loop = !!loop; a.volume = .4; return a; }
+// ===== ВСЕ ЗВУКИ ОХРАННИКА =====
+function au(src, loop, vol) {
+    const a = new Audio(src);
+    a.loop = !!loop;
+    a.volume = vol !== undefined ? vol : 0.4;
+    return a;
+}
+
 const snd = {
-    amb:     au('https://example.com/sounds/ambience.mp3', true),
-    camUp:   au('https://example.com/sounds/camera_up.mp3'),
-    camSw:   au('https://example.com/sounds/camera_switch.mp3'),
-    dClose:  au('https://example.com/sounds/door_close.mp3'),
-    dOpen:   au('https://example.com/sounds/door_open.mp3'),
-    pwrOut:  au('https://example.com/sounds/power_out.mp3'),
-    scare:   au('https://example.com/sounds/jumpscare.mp3'),
-    win:     au('https://example.com/sounds/win.mp3'),
-    noise:   au('https://example.com/sounds/static.mp3', true),
-    phone:   null
+    amb:      au('/audio/ambience.mp3', true, 0.2),
+    camUp:    au('/audio/camera_up.mp3', false, 0.5),
+    camDown:  au('/audio/camera_down.mp3', false, 0.5),    // ← НОВОЕ
+    camSw:    au('/audio/camera_switch.mp3', false, 0.4),
+    dClose:   au('/audio/door_close.mp3', false, 0.6),
+    dOpen:    au('/audio/door_open.mp3', false, 0.5),
+    pwrOut:   au('/audio/power_out.mp3', false, 0.7),      // ← НОВОЕ
+    pwrOn:    au('/audio/power_on.mp3', false, 0.7),       // ← НОВОЕ
+    scare:    au('/audio/jumpscare.mp3', false, 1.0),
+    win:      au('/audio/win.mp3', false, 0.8),
+    noise:    au('/audio/static.mp3', true, 0.08),
+    phone:    null
+
+// =================================================================
+// 📞 ССЫЛКИ НА ЗВОНКИ ТЕЛЕФОННОГО ПАРНЯ (5 НОЧЕЙ)
+// Вставьте сюда свои прямые ссылки на mp3:
+// =================================================================
+const PHONE_CALL_URLS = {
+    1: 'https://ваш-сайт.com/phone_call_night1.mp3', // Ночь 1
+    2: 'https://ваш-сайт.com/phone_call_night2.mp3', // Ночь 2
+    3: 'https://ваш-сайт.com/phone_call_night3.mp3', // Ночь 3
+    4: 'https://ваш-сайт.com/phone_call_night4.mp3', // Ночь 4
+    5: 'https://ваш-сайт.com/phone_call_night5.mp3', // Ночь 5
 };
-function play(a){ try{ a.currentTime=0; a.play(); }catch(e){} }
-function stop(a){ try{ a.pause(); a.currentTime=0; }catch(e){} }
+
+
+};
+
+function play(a) { try { a.currentTime = 0; a.play(); } catch(e) {} }
+function stop(a) { try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
 const canvas = document.getElementById('camCanvas');
 const ctx = canvas.getContext('2d');
 const frameImg = new Image();
 
-// Join
 socket.emit('joinAsGuard', gameId, res => {
     if (!res.success) {
         document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;">Game not found</div>';
@@ -48,36 +70,32 @@ socket.emit('joinAsGuard', gameId, res => {
 });
 
 function init() {
-    // Mode setup
     if (mode === 2) {
         document.getElementById('office').style.display = 'block';
         const cc = document.getElementById('camCont');
         cc.classList.add('mode2-down');
-        document.getElementById('officeMonBtn').addEventListener('click', () => toggleCams());
+        document.getElementById('officeMonBtn').addEventListener('click', toggleCams);
         document.getElementById('officeMonBtn').addEventListener('touchend', e => { e.preventDefault(); toggleCams(); });
     } else {
         document.getElementById('camCont').classList.add('mode1-hidden');
     }
-
     buildDoors();
     buildCamBtns();
     buildTouchBar();
     updateUI();
 }
 
-/* ===== DOORS ===== */
 const DOOR_NAMES = ['LEFT','RIGHT','BACK'];
 const DOOR_KEYS = ['Q','W','E'];
-const DOOR_POS = (n) => n===1 ? ['left'] : n===2 ? ['left','right'] : ['left','right','center'];
+const DOOR_POS = n => n===1 ? ['left'] : n===2 ? ['left','right'] : ['left','right','center'];
 
 function buildDoors() {
-    const positions = DOOR_POS(S.doorCount);
-    let panelsH = '', btnsH = '';
-
-    positions.forEach((pos, i) => {
-        panelsH += `<div class="door-panel ${pos}" id="dPanel${i}"><div class="stripe"></div></div>`;
-        const posClass = pos === 'center' ? 'pos-center' : 'pos-' + pos;
-        btnsH += `<div class="door-btns-wrap ${posClass}">
+    const pos = DOOR_POS(S.doorCount);
+    let pH = '', bH = '';
+    pos.forEach((p, i) => {
+        pH += `<div class="door-panel ${p}" id="dPanel${i}"><div class="stripe"></div></div>`;
+        const pc = p === 'center' ? 'pos-center' : 'pos-' + p;
+        bH += `<div class="door-btns-wrap ${pc}">
             <div class="door-toggle open" id="dBtn${i}" data-door="${i}">
                 <span class="d-icon">🚪</span>
                 <span class="d-name">${DOOR_NAMES[i]||'DOOR '+(i+1)}</span>
@@ -85,12 +103,9 @@ function buildDoors() {
             </div>
         </div>`;
     });
-
-    document.getElementById('doorPanels').innerHTML = panelsH;
-    document.getElementById('doorBtns').innerHTML = btnsH;
-
-    // Click/touch handlers for door buttons
-    positions.forEach((_, i) => {
+    document.getElementById('doorPanels').innerHTML = pH;
+    document.getElementById('doorBtns').innerHTML = bH;
+    pos.forEach((_, i) => {
         const el = document.getElementById('dBtn' + i);
         el.addEventListener('click', () => doDoor(i));
         el.addEventListener('touchend', e => { e.preventDefault(); doDoor(i); });
@@ -99,62 +114,50 @@ function buildDoors() {
 
 function doDoor(i) { socket.emit('toggleDoor', { gameId, doorIndex: i }); }
 
-/* ===== CAMERA BUTTONS ===== */
 function buildCamBtns() {
     const box = document.getElementById('camBtns');
     let h = '';
     if (S.cameras) {
         S.cameras.forEach((c, i) => {
             const cls = c.connected ? (c.broken ? 'broken' : '') : 'off';
-            h += `<div class="cam-btn-item ${cls} ${i===curCam && camsUp ? 'active':''}" id="cBtn${i}" data-cam="${i}">CAM ${i+1}</div>`;
+            h += `<div class="cam-btn-item ${cls} ${i===curCam&&camsUp?'active':''}" id="cBtn${i}">CAM ${i+1}</div>`;
         });
     }
     box.innerHTML = h;
-
-    // Handlers
     S.cameras.forEach((c, i) => {
         const el = document.getElementById('cBtn' + i);
         if (!el) return;
-        const handler = () => { if (camsUp && c.connected) switchCam(i); };
-        el.addEventListener('click', handler);
-        el.addEventListener('touchend', e => { e.preventDefault(); handler(); });
+        const fn = () => { if (camsUp && c.connected) switchCam(i); };
+        el.addEventListener('click', fn);
+        el.addEventListener('touchend', e => { e.preventDefault(); fn(); });
     });
 }
 
-/* ===== TOUCH BAR ===== */
 function buildTouchBar() {
     const bar = document.getElementById('touchBar');
     let h = `<div class="touch-btn" id="tCam">📷 CAM</div>`;
-
-    const positions = DOOR_POS(S.doorCount);
-    positions.forEach((_, i) => {
-        h += `<div class="touch-btn" id="tDoor${i}" data-door="${i}">🚪 ${DOOR_NAMES[i]||'D'+(i+1)}</div>`;
+    DOOR_POS(S.doorCount).forEach((_, i) => {
+        h += `<div class="touch-btn" id="tDoor${i}">🚪 ${DOOR_NAMES[i]||'D'+(i+1)}</div>`;
     });
-
     h += `<div class="touch-btn" id="tReboot" style="display:none">🔄 REBOOT</div>`;
     bar.innerHTML = h;
 
-    // Handlers
     const camBtn = document.getElementById('tCam');
     camBtn.addEventListener('click', toggleCams);
     camBtn.addEventListener('touchend', e => { e.preventDefault(); toggleCams(); });
-
-    positions.forEach((_, i) => {
+    DOOR_POS(S.doorCount).forEach((_, i) => {
         const el = document.getElementById('tDoor' + i);
         el.addEventListener('click', () => doDoor(i));
         el.addEventListener('touchend', e => { e.preventDefault(); doDoor(i); });
     });
-
     const rb = document.getElementById('tReboot');
     rb.addEventListener('click', doReboot);
     rb.addEventListener('touchend', e => { e.preventDefault(); doReboot(); });
 }
 
-/* ===== CAMERA TOGGLE ===== */
 function toggleCams() { socket.emit('toggleCameras', gameId); }
 function switchCam(i) { socket.emit('switchCamera', { gameId, camIndex: i }); }
 
-/* ===== REBOOT ===== */
 function doReboot() {
     if (!S || !S.systemOff || rebooting) return;
     rebooting = true;
@@ -162,7 +165,6 @@ function doReboot() {
     socket.emit('startReboot', gameId);
 }
 
-/* ===== KEYBOARD ===== */
 document.addEventListener('keydown', e => {
     if (!S || S.state !== 'playing') return;
     const k = e.code;
@@ -181,12 +183,12 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
-/* ===== SOCKET EVENTS ===== */
+// ===== SOCKET EVENTS =====
 
 socket.on('gameStarted', st => {
     S = st; mode = st.mode;
     updateUI();
-    try { snd.amb.play(); } catch(e){}
+    try { snd.amb.play(); } catch(e) {}
     playPhone(st.night);
 });
 
@@ -196,7 +198,12 @@ socket.on('camerasToggled', d => {
     S = d.state;
     camsUp = d.camerasUp;
     updateCamView();
-    play(snd.camUp);
+    // ← ЗВУК: поднятие ИЛИ закрытие планшета
+    if (camsUp) {
+        play(snd.camUp);
+    } else {
+        play(snd.camDown);
+    }
 });
 
 socket.on('cameraSwitched', d => {
@@ -214,7 +221,7 @@ socket.on('doorToggled', d => {
 
     if (panel) {
         panel.classList.remove('anim-close','anim-open');
-        void panel.offsetWidth; // force reflow
+        void panel.offsetWidth;
         if (d.closed) {
             panel.classList.add('anim-close','shut');
             play(snd.dClose);
@@ -239,7 +246,6 @@ socket.on('doorAnimDone', d => {
 socket.on('cameraFrame', d => {
     if (!camsUp || curCam !== d.camIndex) return;
     if (d.broken) { showBroken(); return; }
-
     document.getElementById('noSig').style.display = 'none';
     frameImg.onload = () => {
         canvas.width = frameImg.width;
@@ -265,12 +271,14 @@ socket.on('cameraRepairedNotify', d => {
 
 socket.on('cameraRepairing', d => { S = d.state; });
 
+// ← ЗВУК: ВЫКЛЮЧЕНИЕ СВЕТА (охранник)
 socket.on('powerOut', st => {
     S = st;
     camsUp = false;
     updateCamView();
     document.getElementById('pwrOut').classList.add('on');
     stop(snd.amb);
+    stop(snd.noise);
     play(snd.pwrOut);
     setTimeout(() => {
         document.getElementById('rebootHint').style.display = 'block';
@@ -293,6 +301,7 @@ socket.on('rebootWaitingApproval', st => {
     document.getElementById('rebootMsg').textContent = 'WAITING FOR APPROVAL...';
 });
 
+// ← ЗВУК: ВКЛЮЧЕНИЕ СВЕТА (охранник)
 socket.on('rebootApproved', st => {
     S = st;
     rebooting = false;
@@ -302,7 +311,8 @@ socket.on('rebootApproved', st => {
     const tb = document.getElementById('tReboot');
     if (tb) tb.style.display = 'none';
     doFlash();
-    try { snd.amb.play(); } catch(e){}
+    play(snd.pwrOn);
+    try { snd.amb.play(); } catch(e) {}
     updateUI();
 });
 
@@ -314,68 +324,61 @@ socket.on('rebootDenied', st => {
     document.getElementById('rebootHint').style.display = 'block';
 });
 
+// ← ЗВУК: СКРИМЕР (охранник)
 socket.on('gameLost', d => {
     S = d;
-    stop(snd.amb); stop(snd.noise);
+    stop(snd.amb);
+    stop(snd.noise);
     play(snd.scare);
     document.getElementById('scareScr').classList.add('on');
 });
 
+// ← ЗВУК: ПОБЕДА (охранник)
 socket.on('gameWon', st => {
     S = st;
-    stop(snd.amb); stop(snd.noise);
+    stop(snd.amb);
+    stop(snd.noise);
     play(snd.win);
     document.getElementById('winScr').classList.add('on');
     spawnConf();
 });
 
-/* ===== UI ===== */
+// ===== UI =====
 
 function updateUI() {
     if (!S) return;
     document.getElementById('hTime').textContent = S.hourString;
-
     const p = Math.round(S.power);
     const pe = document.getElementById('hPwr');
     pe.textContent = p + '%';
     pe.className = 'pwr-val ' + (p <= 15 ? 'lo' : p <= 40 ? 'md' : 'hi');
-
     let bars = 1;
     if (S.camerasUp) bars++;
     S.doors.forEach(d => { if (d.closed) bars++; });
     document.getElementById('hUsage').textContent = 'Usage: ' + '█'.repeat(bars);
-
-    // Doors
     S.doors.forEach((d, i) => {
         const panel = document.getElementById('dPanel' + i);
         const btn = document.getElementById('dBtn' + i);
         if (panel) panel.classList.toggle('shut', d.closed);
         if (btn && !d.animating) btn.className = 'door-toggle ' + (d.closed ? 'closed' : 'open');
     });
-
     camsUp = S.camerasUp;
     curCam = S.currentCamera;
     updateCamView();
-
     if (S.systemOff) document.getElementById('pwrOut').classList.add('on');
 }
 
 function updateCamView() {
     const cc = document.getElementById('camCont');
-
     if (mode === 1) {
         cc.classList.toggle('mode1-hidden', !camsUp);
     } else {
         cc.classList.toggle('mode2-up', camsUp);
         cc.classList.toggle('mode2-down', !camsUp);
     }
-
     const tCam = document.getElementById('tCam');
     if (tCam) tCam.classList.toggle('on', camsUp);
-
     document.getElementById('camLbl').textContent = 'CAM ' + (curCam + 1);
-
-    // Update cam buttons
     if (S && S.cameras) {
         S.cameras.forEach((c, i) => {
             const el = document.getElementById('cBtn' + i);
@@ -385,8 +388,6 @@ function updateCamView() {
             el.classList.toggle('off', !c.connected);
         });
     }
-
-    // Show broken / no signal
     if (camsUp && S && S.cameras[curCam]) {
         const c = S.cameras[curCam];
         if (c.broken) {
@@ -399,10 +400,8 @@ function updateCamView() {
             document.getElementById('noSig').style.display = 'none';
         }
     }
-
-    // Static sound
-    if (camsUp) { try { snd.noise.volume = .08; snd.noise.play(); } catch(e){} }
-    else { try { snd.noise.pause(); } catch(e){} }
+    if (camsUp) { try { snd.noise.play(); } catch(e) {} }
+    else { try { snd.noise.pause(); } catch(e) {} }
 }
 
 function showBroken() {
@@ -435,12 +434,43 @@ function doFlash() {
     setTimeout(() => f.classList.remove('pop'), 120);
 }
 
+// ===== ВОСПРОИЗВЕДЕНИЕ ЗВОНКА ПО ССЫЛКЕ =====
 function playPhone(night) {
-    snd.phone = new Audio('/audio/phone_call_night' + night + '.mp3');
-    snd.phone.volume = .6;
-    snd.phone.play().catch(()=>{});
-    snd.phone.onended = () => socket.emit('phoneCallDone', gameId);
+    const callUrl = PHONE_CALL_URLS[night];
+    
+    // Если на эту ночь нет ссылки (например, 6 или 7 ночь) — ничего не делаем
+    if (!callUrl) return;
+
+    const muteBtn = document.getElementById('muteCallBtn');
+    if (muteBtn) muteBtn.style.display = 'block';
+
+    // Создаем аудио по ссылке
+    snd.phone = new Audio(callUrl);
+    snd.phone.volume = 0.7; // Громкость 70%
+
+    // Запуск через 2 секунды после старта ночи
+    setTimeout(() => {
+        if (!S || S.state !== 'playing' || S.systemOff) return;
+        snd.phone.play().catch(() => {});
+    }, 2000);
+
+    // Когда звонок закончился
+    snd.phone.onended = () => {
+        if (muteBtn) muteBtn.style.display = 'none';
+        socket.emit('phoneCallDone', gameId);
+    };
 }
+
+// Кнопка сброса MUTE CALL
+window.mutePhoneCall = function() {
+    if (snd.phone) {
+        snd.phone.pause();
+        snd.phone.currentTime = 0;
+    }
+    const muteBtn = document.getElementById('muteCallBtn');
+    if (muteBtn) muteBtn.style.display = 'none';
+    socket.emit('phoneCallDone', gameId);
+};
 
 function spawnConf() {
     const box = document.getElementById('confBox');

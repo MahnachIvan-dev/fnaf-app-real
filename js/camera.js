@@ -32,17 +32,20 @@ function au(src, loop, vol) {
 }
 
 const snd = {
+    nightStart: au('https://files.catbox.moe/8y8z75.mp3', false, 0.5), // Мелодия старта
+    winMelody:  au('https://files.catbox.moe/win_melody.mp3', false, 0.5),  // Триумфальная музыка
+
     camUp:     au('/audio/camera_up.mp3', false, 0.4),
     camDown:   au('/audio/camera_down.mp3', false, 0.4),
     camSw:     au('/audio/camera_switch.mp3', false, 0.3),
-    camBroken: au('/audio/camera_broken.mp3', false, 0.8),   // ← НОВОЕ: звук поломки
-    noise:     au('/audio/static.mp3', true, 0.25),           // ← шум сломанной камеры
+    camBroken: au('/audio/camera_broken.mp3', false, 0.8),
+    noise:     au('/audio/static.mp3', true, 0.25),
     dClose:    au('/audio/door_close.mp3', false, 0.5),
     dOpen:     au('/audio/door_open.mp3', false, 0.4),
-    pwrOut:    au('/audio/power_out.mp3', false, 0.6),        // ← выключение света
-    pwrOn:     au('/audio/power_on.mp3', false, 0.6),         // ← включение света
-    scare:     au('/audio/jumpscare.mp3', false, 0.9),        // ← проигрыш
-    win:       au('/audio/win.mp3', false, 0.7)               // ← победа
+    pwrOut:    au('/audio/power_out.mp3', false, 0.6),
+    pwrOn:     au('/audio/power_on.mp3', false, 0.6),
+    scare:     au('/audio/jumpscare.mp3', false, 0.9),
+    win:       au('/audio/win.mp3', false, 0.7)
 };
 
 function play(a) { try { a.currentTime = 0; a.play(); } catch(e) {} }
@@ -123,9 +126,8 @@ function animRepair() {
     if (p < 1) requestAnimationFrame(animRepair);
 }
 
-// ===== ЗВУКИ НА СТРАНИЦЕ КАМЕРЫ =====
+// ===== СОБЫТИЯ И ЗВУКИ =====
 
-// ← ЗВУК: камеру сломали (играет НА ТЕЛЕФОНЕ КАМЕРЫ)
 socket.on('cameraBroken', () => {
     broken = true;
     brokenFull.classList.add('on');
@@ -136,13 +138,10 @@ socket.on('cameraBroken', () => {
     repairing = false;
     statusTxt.textContent = 'CAMERA BROKEN!';
     statusTxt.style.color = 'var(--red)';
-
-    // Звук поломки + шум помех
     play(snd.camBroken);
     try { snd.noise.play(); } catch(e) {}
 });
 
-// ← ЗВУК: камеру починили — стоп шум
 socket.on('cameraRepaired', () => {
     broken = false;
     repairing = false;
@@ -152,41 +151,26 @@ socket.on('cameraRepaired', () => {
     repairStatus.textContent = '';
     statusTxt.textContent = 'Camera active — streaming';
     statusTxt.style.color = 'var(--green)';
-
     stop(snd.noise);
 });
 
-// ← ЗВУК: поднятие/закрытие камер у охранника (слышно на камере)
 socket.on('camerasToggled', d => {
-    if (d.camerasUp) {
-        play(snd.camUp);
-    } else {
-        play(snd.camDown);
-    }
+    if (d.camerasUp) { play(snd.camUp); } else { play(snd.camDown); }
 });
 
-// ← ЗВУК: переключение камер у охранника (слышно на камере)
-socket.on('cameraSwitched', () => {
-    play(snd.camSw);
-});
+socket.on('cameraSwitched', () => { play(snd.camSw); });
 
-// ← ЗВУК: двери (слышно на камере)
 socket.on('doorToggled', d => {
-    if (d.closed) {
-        play(snd.dClose);
-    } else {
-        play(snd.dOpen);
-    }
+    if (d.closed) { play(snd.dClose); } else { play(snd.dOpen); }
 });
 
-// ← ЗВУК: выключение света (на камере)
 socket.on('powerOut', () => {
+    stop(snd.nightStart);
     play(snd.pwrOut);
     statusTxt.textContent = '⚠️ POWER OUT!';
     statusTxt.style.color = 'var(--red)';
 });
 
-// ← ЗВУК: включение света (на камере)
 socket.on('rebootApproved', () => {
     play(snd.pwrOn);
     if (!broken) {
@@ -195,26 +179,37 @@ socket.on('rebootApproved', () => {
     }
 });
 
-// ← ЗВУК: победа (на камере)
+// ПОБЕДА (на камере)
 socket.on('gameWon', () => {
     streaming = false;
     if (sendTimer) clearInterval(sendTimer);
     stop(snd.noise);
+    stop(snd.nightStart);
+    
+    // Включаем сирену победы
     play(snd.win);
     document.getElementById('winEnd').classList.add('on');
+
+    // Сразу после сирены включаем финальную музыку
+    snd.win.onended = () => {
+        play(snd.winMelody);
+    };
 });
 
-// ← ЗВУК: проигрыш / скример (на камере)
+// ПРОИГРЫШ (на камере)
 socket.on('gameLost', () => {
     streaming = false;
     if (sendTimer) clearInterval(sendTimer);
     stop(snd.noise);
+    stop(snd.nightStart);
     play(snd.scare);
     document.getElementById('loseEnd').classList.add('on');
 });
 
+// НАЧАЛО ИГРЫ (на камере)
 socket.on('gameStarted', () => {
     statusTxt.textContent = 'NIGHT STARTED — Camera active';
+    play(snd.nightStart);
 });
 
 })();

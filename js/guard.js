@@ -18,16 +18,16 @@ let rebootT0 = 0;
 // Audio
 function au(src, loop) { const a = new Audio(src); a.loop = !!loop; a.volume = .4; return a; }
 const snd = {
-    amb: au('/audio/ambience.mp3', true),
-    camUp: au('/audio/camera_up.mp3'),
-    camSw: au('/audio/camera_switch.mp3'),
-    dClose: au('/audio/door_close.mp3'),
-    dOpen: au('/audio/door_open.mp3'),
-    pwrOut: au('/audio/power_out.mp3'),
-    scare: au('/audio/jumpscare.mp3'),
-    win: au('/audio/win.mp3'),
-    noise: au('/audio/static.mp3', true),
-    phone: null
+    amb:     au('https://example.com/sounds/ambience.mp3', true),
+    camUp:   au('https://example.com/sounds/camera_up.mp3'),
+    camSw:   au('https://example.com/sounds/camera_switch.mp3'),
+    dClose:  au('https://example.com/sounds/door_close.mp3'),
+    dOpen:   au('https://example.com/sounds/door_open.mp3'),
+    pwrOut:  au('https://example.com/sounds/power_out.mp3'),
+    scare:   au('https://example.com/sounds/jumpscare.mp3'),
+    win:     au('https://example.com/sounds/win.mp3'),
+    noise:   au('https://example.com/sounds/static.mp3', true),
+    phone:   null
 };
 function play(a){ try{ a.currentTime=0; a.play(); }catch(e){} }
 function stop(a){ try{ a.pause(); a.currentTime=0; }catch(e){} }

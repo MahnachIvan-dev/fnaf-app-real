@@ -1,1 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FNAF: Real Life</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- BOOT -->
+    <div id="scrBoot" class="page-center">
+        <div class="title title-big">FIVE NIGHTS<br>AT FREDDY'S</div>
+        <div class="title title-sm" style="color:var(--green); margin-bottom:30px;">REAL LIFE EDITION</div>
+        <div class="subtitle">[ SECURITY OS v1.87 ]</div>
+        <button class="btn" onclick="showScreen('scrCreate')">▶ CREATE GAME</button>
+    </div>
 
+    <!-- CREATE -->
+    <div id="scrCreate" class="page-center" style="display:none">
+        <div class="title title-med">GAME SETUP</div>
+        <div class="panel">
+            <div class="row">
+                <span class="row-label">MODE</span>
+                <select id="cfgMode">
+                    <option value="1">1 — Monitor Only</option>
+                    <option value="2">2 — Office + Monitor</option>
+                </select>
+            </div>
+            <div class="row">
+                <span class="row-label">DOORS</span>
+                <select id="cfgDoors">
+                    <option value="1">1</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+            <div class="row">
+                <span class="row-label">NIGHT</span>
+                <select id="cfgNight">
+                    <option value="1">Night 1</option>
+                    <option value="2">Night 2</option>
+                    <option value="3">Night 3</option>
+                    <option value="4">Night 4</option>
+                    <option value="5">Night 5</option>
+                    <option value="6">Night 6</option>
+                    <option value="7">Night 7</option>
+                </select>
+            </div>
+            <div style="text-align:center; margin-top:18px;">
+                <button class="btn" onclick="doCreate()">CREATE</button>
+                <button class="btn red" onclick="showScreen('scrBoot')">BACK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOBBY -->
+    <div id="scrLobby" class="page-center" style="display:none">
+        <div class="title title-med">GAME LOBBY</div>
+        <div class="night-label" id="lblNight"></div>
+        <div style="font-size:1.5rem; color:var(--yellow); margin:8px 0;" id="lblGameId"></div>
+
+        <div class="links-box panel" id="linksBox"></div>
+
+        <div style="margin-top:15px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+            <button class="btn" id="btnStart" onclick="doStart()" disabled>▶ START NIGHT</button>
+            <button class="btn yellow" onclick="openGuard()">OPEN GUARD</button>
+        </div>
+        <div style="color:#555; font-size:.9rem; text-align:center; margin-top:12px; max-width:500px;">
+            Share camera links with friends' phones.<br>
+            Share the animatronic link with the enemy player.<br>
+            At least 1 camera must be connected to start.
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let G = null; // current game data
+
+        function showScreen(id) {
+            document.querySelectorAll('.page-center').forEach(el => el.style.display = 'none');
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function doCreate() {
+            const s = {
+                mode: +document.getElementById('cfgMode').value,
+                doorCount: +document.getElementById('cfgDoors').value,
+                night: +document.getElementById('cfgNight').value
+            };
+            socket.emit('createGame', s, res => {
+                if (!res.success) return alert('Error');
+                G = res;
+                showScreen('scrLobby');
+                renderLobby();
+            });
+        }
+
+        function renderLobby() {
+            document.getElementById('lblNight').textContent = 'Night ' + G.state.night;
+            document.getElementById('lblGameId').textContent = 'ID: ' + G.gameId;
+
+            const base = location.origin;
+            let h = '';
+
+            // Guard
+            h += linkRow('🛡️ GUARD', G.links.guard);
+
+            // Cameras
+            G.links.cameras.forEach((l, i) => {
+                const c = G.state.cameras[i];
+                const on = c && c.connected;
+                h += linkRow('📷 CAM ' + (i+1), l, 'cam' + i, on);
+            });
+
+            // Animatronic
+            h += linkRow('🤖 ANIMATRONIC', G.links.animatronic, 'anim', false);
+
+            document.getElementById('linksBox').innerHTML = h;
+            checkReady(G.state);
+        }
+
+        function linkRow(name, path, statusId, on) {
+            const base = location.origin;
+            const full = base + path;
+            let s = '';
+            if (statusId) {
+                const cls = on ? 'on' : 'off';
+                const txt = on ? '✓ ONLINE' : '✗ WAITING';
+                s = `<span class="link-status ${cls}" id="ls_${statusId}">${txt}</span>`;
+            }
+            return `<div class="link-row">
+                <span>${name}</span>
+                <a href="${path}" target="_blank">${full}</a>
+                ${s}
+                <button class="copy-btn" onclick="copyTxt('${full}')">COPY</button>
+            </div>`;
+        }
+
+        function copyTxt(t) {
+            navigator.clipboard.writeText(t).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = t; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta);
+            });
+        }
+
+        function checkReady(st) {
+            const ok = st.cameras && st.cameras.some(c => c.connected);
+            document.getElementById('btnStart').disabled = !ok;
+        }
+
+        function doStart() { if (G) socket.emit('startGame', G.gameId); }
+        function openGuard() { if (G) window.open(G.links.guard, '_blank'); }
+
+        socket.on('cameraConnected', d => {
+            const el = document.getElementById('ls_cam' + d.camIndex);
+            if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; }
+            checkReady(d.state);
+        });
+        socket.on('animatronicConnected', d => {
+            const el = document.getElementById('ls_anim');
+            if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; }
+        });
+        socket.on('gameState', d => checkReady(d));
+        socket.on('gameStarted', () => { if (G) location.href = G.links.guard; });
+    </script>
+</body>
+</html>

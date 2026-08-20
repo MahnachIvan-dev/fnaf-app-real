@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FNAF — Security Monitor</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="guard-root" id="root">
+        <!-- Office bg (mode 2) -->
+        <div class="office" id="office" style="display:none">
+            <div class="office-desk"></div>
+            <div class="office-monitor-btn" id="officeMonBtn">
+                <span>TAP / SPACE<br>to view cameras</span>
+            </div>
+        </div>
+
+        <!-- Camera container -->
+        <div class="cam-container" id="camCont">
+            <div class="cam-view" id="camView">
+                <canvas id="camCanvas"></canvas>
+                <div class="no-signal" id="noSig" style="display:none">NO SIGNAL</div>
+            </div>
+            <div class="cam-overlay">
+                <div class="cam-rec"><div class="dot"></div> REC</div>
+                <div class="cam-label-text" id="camLbl">CAM 1</div>
+            </div>
+            <div class="static-layer"></div>
+            <div class="cam-btns" id="camBtns"></div>
+        </div>
+
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-top">
+                <div class="hud-time" id="hTime">12 AM</div>
+                <div class="hud-power">
+                    <div class="pwr-label">POWER</div>
+                    <div class="pwr-val hi" id="hPwr">100%</div>
+                    <div class="pwr-usage" id="hUsage"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Door panels -->
+        <div id="doorPanels"></div>
+        <!-- Door buttons -->
+        <div id="doorBtns"></div>
+
+        <!-- Touch bar -->
+        <div class="touch-bar" id="touchBar"></div>
+
+        <!-- Power out -->
+        <div class="pwr-out-screen" id="pwrOut">
+            <div class="pwr-out-text">POWER OUT</div>
+            <div class="reboot-hint" id="rebootHint" style="display:none">Press H or tap REBOOT</div>
+            <div class="progress-bar" id="rebootBar" style="display:none"><div class="fill" id="rebootFill"></div></div>
+            <div id="rebootMsg"></div>
+        </div>
+
+        <!-- Scare -->
+        <div class="scare-screen" id="scareScr"><div class="scare-text">GAME OVER</div></div>
+
+        <!-- Win -->
+        <div class="win-screen" id="winScr">
+            <div class="win-big">6 AM</div>
+            <div class="win-sub">YOU SURVIVED THE NIGHT!</div>
+            <div id="confBox"></div>
+        </div>
+
+        <div class="flash" id="flash"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/guard.js"></script>
+</body>
+</html>

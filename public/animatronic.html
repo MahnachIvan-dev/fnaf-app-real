@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FNAF — Animatronic</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="anim-page">
+        <div class="title title-med" style="color:var(--red); margin-bottom:15px;">ANIMATRONIC<br>CONTROL</div>
+
+        <!-- Connect -->
+        <div class="anim-panel" id="pConnect">
+            <h2>JOIN GAME</h2>
+            <input type="text" id="animName" placeholder="Name (e.g. Freddy)" value="Freddy"
+                style="width:100%; padding:10px; background:var(--bg); border:1px solid var(--red);
+                color:var(--red); font-family:'VT323',monospace; font-size:1.2rem; margin-bottom:10px;">
+            <button class="anim-btn" id="btnConnect">CONNECT</button>
+            <div id="connectMsg" style="color:var(--white); margin-top:8px;"></div>
+        </div>
+
+        <!-- Status -->
+        <div class="anim-panel" id="pStatus" style="display:none">
+            <h2>GUARD STATUS</h2>
+            <div class="anim-info">Time: <span id="aTime">12 AM</span></div>
+            <div class="anim-info">Power: <span id="aPwr">100%</span></div>
+            <div class="anim-info">Cameras: <span id="aCams">DOWN</span></div>
+            <div class="anim-info" id="aDoors"></div>
+            <div class="anim-info">System: <span id="aSys">ON</span></div>
+        </div>
+
+        <!-- Sabotage -->
+        <div class="anim-panel" id="pSabotage" style="display:none">
+            <h2>SABOTAGE</h2>
+            <button class="anim-btn" id="btnKillPwr">⚡ KILL POWER</button>
+            <div id="camActions"></div>
+        </div>
+
+        <!-- Attack -->
+        <div class="anim-panel" id="pAttack" style="display:none">
+            <h2>ATTACK</h2>
+            <button class="anim-btn" id="btnScare" style="font-size:1.4rem;">💀 JUMPSCARE</button>
+            <div style="color:#666; font-size:.85rem; margin-top:8px; text-align:center;">
+                Press when you physically reached the guard!
+            </div>
+        </div>
+
+        <!-- Reboot -->
+        <div class="anim-panel" id="pReboot" style="display:none; border-color:var(--yellow);">
+            <h2 style="color:var(--yellow);">REBOOT REQUEST</h2>
+            <div style="color:var(--white); margin-bottom:12px; text-align:center;">Guard wants to reboot systems!</div>
+            <button class="anim-btn green" id="btnApprove">✓ APPROVE</button>
+            <button class="anim-btn" id="btnDeny">✗ DENY</button>
+        </div>
+    </div>
+
+    <!-- End -->
+    <div class="end-overlay" id="winEnd">
+        <div class="win-big" style="font-size:clamp(1.5rem,8vw,3rem);">6 AM</div>
+        <div style="color:var(--red); font-size:1.2rem; margin-top:12px;">Guard survived!</div>
+    </div>
+    <div class="end-overlay" id="loseEnd">
+        <div style="font-family:'Press Start 2P',cursive; font-size:clamp(1rem,5vw,2rem); color:var(--green);">YOU WIN!</div>
+        <div style="color:var(--white); margin-top:10px;">The guard has been caught!</div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/animatronic.js"></script>
+</body>
+</html>

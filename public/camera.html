@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FNAF — Camera</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="cam-page" id="camPage">
+        <div class="title title-sm" style="margin-bottom:10px;">SECURITY CAMERA</div>
+        <div style="font-size:1.4rem; color:var(--yellow);" id="camIdx"></div>
+
+        <video id="vid" autoplay playsinline muted style="display:none; margin:10px 0;"></video>
+        <canvas id="capCvs" style="display:none;"></canvas>
+
+        <div class="status-text" id="statusTxt">Initializing...</div>
+
+        <button class="btn" id="btnEnableCam" style="display:none">📷 ENABLE CAMERA</button>
+
+        <!-- Repair -->
+        <div class="repair-box" id="repairBox">
+            <div style="color:var(--yellow); font-size:1.2rem; margin-bottom:10px;">CAMERA BROKEN!</div>
+            <button class="btn yellow" id="btnRepair">🔧 REPAIR (20s)</button>
+            <div class="progress-bar" id="repairBar" style="margin-top:10px; display:none;">
+                <div class="fill" id="repairFill"></div>
+            </div>
+            <div id="repairStatus" style="color:var(--green); margin-top:8px;"></div>
+        </div>
+
+        <!-- Broken full screen -->
+        <div class="broken-full" id="brokenFull">
+            <div class="noise-bg"></div>
+            <div style="z-index:101; color:var(--red); font-family:'Press Start 2P',cursive; font-size:clamp(.8rem,3vw,1.2rem); text-align:center; padding:20px; line-height:2;">
+                CAMERA<br>MALFUNCTION<br><br>
+                <span style="color:var(--yellow); font-size:.8em;">Tap REPAIR below</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- End screens -->
+    <div class="end-overlay" id="winEnd">
+        <div class="win-big" style="font-size:clamp(1.5rem,8vw,3rem);">6 AM</div>
+        <div class="win-sub">NIGHT COMPLETE</div>
+    </div>
+    <div class="end-overlay" id="loseEnd">
+        <div class="scare-text" style="font-size:clamp(1rem,5vw,2rem);">GAME OVER</div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/camera.js"></script>
+</body>
+</html>

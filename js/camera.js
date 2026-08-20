@@ -23,13 +23,37 @@ const repairFill = document.getElementById('repairFill');
 const repairStatus = document.getElementById('repairStatus');
 const brokenFull = document.getElementById('brokenFull');
 
+// ===== ВСЕ ЗВУКИ КАМЕРЫ =====
+function au(src, loop, vol) {
+    const a = new Audio(src);
+    a.loop = !!loop;
+    a.volume = vol !== undefined ? vol : 0.4;
+    return a;
+}
+
+const snd = {
+    camUp:     au('/audio/camera_up.mp3', false, 0.4),
+    camDown:   au('/audio/camera_down.mp3', false, 0.4),
+    camSw:     au('/audio/camera_switch.mp3', false, 0.3),
+    camBroken: au('/audio/camera_broken.mp3', false, 0.8),   // ← НОВОЕ: звук поломки
+    noise:     au('/audio/static.mp3', true, 0.25),           // ← шум сломанной камеры
+    dClose:    au('/audio/door_close.mp3', false, 0.5),
+    dOpen:     au('/audio/door_open.mp3', false, 0.4),
+    pwrOut:    au('/audio/power_out.mp3', false, 0.6),        // ← выключение света
+    pwrOn:     au('/audio/power_on.mp3', false, 0.6),         // ← включение света
+    scare:     au('/audio/jumpscare.mp3', false, 0.9),        // ← проигрыш
+    win:       au('/audio/win.mp3', false, 0.7)               // ← победа
+};
+
+function play(a) { try { a.currentTime = 0; a.play(); } catch(e) {} }
+function stop(a) { try { a.pause(); a.currentTime = 0; } catch(e) {} }
+
 let streaming = false;
 let broken = false;
 let repairing = false;
 let repairT0 = 0;
 let sendTimer = null;
 
-// Join
 socket.emit('joinAsCamera', { gameId, camIndex }, res => {
     if (!res.success) {
         statusTxt.textContent = 'Error: ' + (res.error || 'Unknown');
@@ -41,7 +65,6 @@ socket.emit('joinAsCamera', { gameId, camIndex }, res => {
     startCam();
 });
 
-// Enable camera
 btnEnable.addEventListener('click', startCam);
 btnEnable.addEventListener('touchend', e => { e.preventDefault(); startCam(); });
 
@@ -69,22 +92,16 @@ function sendFrame() {
     if (!streaming || broken) return;
     capCvs.width = 320; capCvs.height = 240;
     capCtx.drawImage(vid, 0, 0, 320, 240);
-
-    // Green tint
     capCtx.fillStyle = 'rgba(0,255,0,.02)';
     capCtx.fillRect(0, 0, 320, 240);
-
-    // Timestamp
     capCtx.fillStyle = 'rgba(255,255,255,.6)';
     capCtx.font = '10px monospace';
     capCtx.fillText(new Date().toLocaleTimeString(), 5, 235);
     capCtx.fillText('CAM ' + (camIndex + 1), 255, 235);
-
     const data = capCvs.toDataURL('image/jpeg', 0.45);
     socket.emit('cameraFrame', { gameId, camIndex, frameData: data });
 }
 
-// Repair — кнопка на самой камере (телефоне)
 btnRepair.addEventListener('click', doRepair);
 btnRepair.addEventListener('touchend', e => { e.preventDefault(); doRepair(); });
 
@@ -106,7 +123,9 @@ function animRepair() {
     if (p < 1) requestAnimationFrame(animRepair);
 }
 
-// Camera broken
+// ===== ЗВУКИ НА СТРАНИЦЕ КАМЕРЫ =====
+
+// ← ЗВУК: камеру сломали (играет НА ТЕЛЕФОНЕ КАМЕРЫ)
 socket.on('cameraBroken', () => {
     broken = true;
     brokenFull.classList.add('on');
@@ -117,9 +136,13 @@ socket.on('cameraBroken', () => {
     repairing = false;
     statusTxt.textContent = 'CAMERA BROKEN!';
     statusTxt.style.color = 'var(--red)';
+
+    // Звук поломки + шум помех
+    play(snd.camBroken);
+    try { snd.noise.play(); } catch(e) {}
 });
 
-// Camera repaired
+// ← ЗВУК: камеру починили — стоп шум
 socket.on('cameraRepaired', () => {
     broken = false;
     repairing = false;
@@ -129,18 +152,64 @@ socket.on('cameraRepaired', () => {
     repairStatus.textContent = '';
     statusTxt.textContent = 'Camera active — streaming';
     statusTxt.style.color = 'var(--green)';
+
+    stop(snd.noise);
 });
 
-// Game events
+// ← ЗВУК: поднятие/закрытие камер у охранника (слышно на камере)
+socket.on('camerasToggled', d => {
+    if (d.camerasUp) {
+        play(snd.camUp);
+    } else {
+        play(snd.camDown);
+    }
+});
+
+// ← ЗВУК: переключение камер у охранника (слышно на камере)
+socket.on('cameraSwitched', () => {
+    play(snd.camSw);
+});
+
+// ← ЗВУК: двери (слышно на камере)
+socket.on('doorToggled', d => {
+    if (d.closed) {
+        play(snd.dClose);
+    } else {
+        play(snd.dOpen);
+    }
+});
+
+// ← ЗВУК: выключение света (на камере)
+socket.on('powerOut', () => {
+    play(snd.pwrOut);
+    statusTxt.textContent = '⚠️ POWER OUT!';
+    statusTxt.style.color = 'var(--red)';
+});
+
+// ← ЗВУК: включение света (на камере)
+socket.on('rebootApproved', () => {
+    play(snd.pwrOn);
+    if (!broken) {
+        statusTxt.textContent = 'Camera active — streaming';
+        statusTxt.style.color = 'var(--green)';
+    }
+});
+
+// ← ЗВУК: победа (на камере)
 socket.on('gameWon', () => {
     streaming = false;
     if (sendTimer) clearInterval(sendTimer);
+    stop(snd.noise);
+    play(snd.win);
     document.getElementById('winEnd').classList.add('on');
 });
 
+// ← ЗВУК: проигрыш / скример (на камере)
 socket.on('gameLost', () => {
     streaming = false;
     if (sendTimer) clearInterval(sendTimer);
+    stop(snd.noise);
+    play(snd.scare);
     document.getElementById('loseEnd').classList.add('on');
 });
 

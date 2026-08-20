@@ -1,3 +1,6 @@
+Вот готовый, полностью рабочий файл **`public/js/guard.js`** со всеми указанными ссылками, исправленным синтаксисом и поддержкой мелодий старта/победы и звонков Телефонного парня:
+
+```javascript
 (function(){
 const socket = io();
 const params = new URLSearchParams(location.search);
@@ -15,7 +18,7 @@ let curCam = 0;
 let rebooting = false;
 let rebootT0 = 0;
 
-// ===== ВСЕ ЗВУКИ ОХРАННИКА =====
+// ===== ФУНКЦИЯ СОЗДАНИЯ АУДИО =====
 function au(src, loop, vol) {
     const a = new Audio(src);
     a.loop = !!loop;
@@ -23,33 +26,32 @@ function au(src, loop, vol) {
     return a;
 }
 
-const snd = {
-    amb:      au('/audio/ambience.mp3', true, 0.2),
-    camUp:    au('/audio/camera_up.mp3', false, 0.5),
-    camDown:  au('/audio/camera_down.mp3', false, 0.5),    // ← НОВОЕ
-    camSw:    au('/audio/camera_switch.mp3', false, 0.4),
-    dClose:   au('/audio/door_close.mp3', false, 0.6),
-    dOpen:    au('/audio/door_open.mp3', false, 0.5),
-    pwrOut:   au('/audio/power_out.mp3', false, 0.7),      // ← НОВОЕ
-    pwrOn:    au('/audio/power_on.mp3', false, 0.7),       // ← НОВОЕ
-    scare:    au('/audio/jumpscare.mp3', false, 1.0),
-    win:      au('/audio/win.mp3', false, 0.8),
-    noise:    au('/audio/static.mp3', true, 0.08),
-    phone:    null
-
-// =================================================================
 // 📞 ССЫЛКИ НА ЗВОНКИ ТЕЛЕФОННОГО ПАРНЯ (5 НОЧЕЙ)
-// Вставьте сюда свои прямые ссылки на mp3:
-// =================================================================
 const PHONE_CALL_URLS = {
-    1: 'https://ваш-сайт.com/phone_call_night1.mp3', // Ночь 1
-    2: 'https://ваш-сайт.com/phone_call_night2.mp3', // Ночь 2
-    3: 'https://ваш-сайт.com/phone_call_night3.mp3', // Ночь 3
-    4: 'https://ваш-сайт.com/phone_call_night4.mp3', // Ночь 4
-    5: 'https://ваш-сайт.com/phone_call_night5.mp3', // Ночь 5
+    1: 'https://files.catbox.moe/9hb3et.ogg', // Ночь 1
+    2: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 2
+    3: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 3
+    4: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 4
+    5: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 5
 };
 
+// 🔊 ОБЪЕКТ СО ВСЕМИ ЗВУКАМИ ОХРАННИКА
+const snd = {
+    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6), // Мелодия старта ночи
+    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),                // Мелодия после 6 AM
 
+    amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
+    camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
+    camDown:  au('https://files.catbox.moe/hljkyi.mp3', false, 0.5),
+    camSw:    au('https://files.catbox.moe/4a9er6.mp3', false, 0.4),
+    dClose:   au('https://files.catbox.moe/xrln60.mp3', false, 0.6),
+    dOpen:    au('https://files.catbox.moe/i0tyqu.mp3', false, 0.5),
+    pwrOut:   au('https://files.catbox.moe/hvxd67.mp3', false, 0.7),
+    pwrOn:    au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7),
+scare:    au('https://files.catbox.moe/bfucts.mp3', false, 1.0),
+    win:      au('https://files.catbox.moe/13m0my.mp3', false, 0.8),
+    noise:    au('https://files.catbox.moe/wn4b5f.mp3', true, 0.08),
+    phone:    null
 };
 
 function play(a) { try { a.currentTime = 0; a.play(); } catch(e) {} }
@@ -183,13 +185,21 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
-// ===== SOCKET EVENTS =====
+// ===== СОБЫТИЯ СЕРВЕРА =====
 
+// СТАРТ ИГРЫ
 socket.on('gameStarted', st => {
     S = st; mode = st.mode;
     updateUI();
-    try { snd.amb.play(); } catch(e) {}
-    playPhone(st.night);
+    
+    // 1. Проигрываем стартовую мелодию
+    play(snd.nightStart);
+    
+    // 2. После окончания мелодии старта включаем фоновый гул и запускаем звонок Телефонного парня
+    snd.nightStart.onended = () => {
+        try { snd.amb.play(); } catch(e) {}
+        playPhone(st.night);
+    };
 });
 
 socket.on('gameState', st => { S = st; updateUI(); });
@@ -198,7 +208,6 @@ socket.on('camerasToggled', d => {
     S = d.state;
     camsUp = d.camerasUp;
     updateCamView();
-    // ← ЗВУК: поднятие ИЛИ закрытие планшета
     if (camsUp) {
         play(snd.camUp);
     } else {
@@ -271,7 +280,6 @@ socket.on('cameraRepairedNotify', d => {
 
 socket.on('cameraRepairing', d => { S = d.state; });
 
-// ← ЗВУК: ВЫКЛЮЧЕНИЕ СВЕТА (охранник)
 socket.on('powerOut', st => {
     S = st;
     camsUp = false;
@@ -279,6 +287,8 @@ socket.on('powerOut', st => {
     document.getElementById('pwrOut').classList.add('on');
     stop(snd.amb);
     stop(snd.noise);
+    stop(snd.nightStart);
+    if (snd.phone) snd.phone.pause();
     play(snd.pwrOut);
     setTimeout(() => {
         document.getElementById('rebootHint').style.display = 'block';
@@ -301,7 +311,6 @@ socket.on('rebootWaitingApproval', st => {
     document.getElementById('rebootMsg').textContent = 'WAITING FOR APPROVAL...';
 });
 
-// ← ЗВУК: ВКЛЮЧЕНИЕ СВЕТА (охранник)
 socket.on('rebootApproved', st => {
     S = st;
     rebooting = false;
@@ -324,26 +333,36 @@ socket.on('rebootDenied', st => {
     document.getElementById('rebootHint').style.display = 'block';
 });
 
-// ← ЗВУК: СКРИМЕР (охранник)
 socket.on('gameLost', d => {
     S = d;
     stop(snd.amb);
     stop(snd.noise);
+    stop(snd.nightStart);
+    if (snd.phone) snd.phone.pause();
     play(snd.scare);
     document.getElementById('scareScr').classList.add('on');
 });
 
-// ← ЗВУК: ПОБЕДА (охранник)
+// ПОБЕДА (6:00 AM)
 socket.on('gameWon', st => {
     S = st;
     stop(snd.amb);
     stop(snd.noise);
+    stop(snd.nightStart);
+    if (snd.phone) snd.phone.pause();
+    
+    // Проигрываем звон часов и крики 6 AM
     play(snd.win);
     document.getElementById('winScr').classList.add('on');
     spawnConf();
+
+    // Как только звук победы доиграет — запускаем триумфальную музыку
+    snd.win.onended = () => {
+        play(snd.winMelody);
+    };
 });
 
-// ===== UI =====
+// ===== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА =====
 
 function updateUI() {
     if (!S) return;
@@ -434,34 +453,28 @@ function doFlash() {
     setTimeout(() => f.classList.remove('pop'), 120);
 }
 
-// ===== ВОСПРОИЗВЕДЕНИЕ ЗВОНКА ПО ССЫЛКЕ =====
+// ===== ВОСПРОИЗВЕДЕНИЕ ЗВОНКА ТЕЛЕФОННОГО ПАРНЯ =====
 function playPhone(night) {
     const callUrl = PHONE_CALL_URLS[night];
-    
-    // Если на эту ночь нет ссылки (например, 6 или 7 ночь) — ничего не делаем
     if (!callUrl) return;
 
     const muteBtn = document.getElementById('muteCallBtn');
     if (muteBtn) muteBtn.style.display = 'block';
 
-    // Создаем аудио по ссылке
     snd.phone = new Audio(callUrl);
-    snd.phone.volume = 0.7; // Громкость 70%
+    snd.phone.volume = 0.7;
 
-    // Запуск через 2 секунды после старта ночи
     setTimeout(() => {
         if (!S || S.state !== 'playing' || S.systemOff) return;
         snd.phone.play().catch(() => {});
-    }, 2000);
+    }, 1000);
 
-    // Когда звонок закончился
     snd.phone.onended = () => {
         if (muteBtn) muteBtn.style.display = 'none';
         socket.emit('phoneCallDone', gameId);
     };
 }
 
-// Кнопка сброса MUTE CALL
 window.mutePhoneCall = function() {
     if (snd.phone) {
         snd.phone.pause();
@@ -489,3 +502,4 @@ function spawnConf() {
 }
 
 })();
+```

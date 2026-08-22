@@ -9,7 +9,6 @@
 <body>
     <div class="guard-root" id="root">
         
-        <!-- КНОПКИ УПРАВЛЕНИЯ -->
         <button id="muteCallBtn" class="mute-call-btn" style="display:none;" onclick="mutePhoneCall()">[ MUTE CALL ]</button>
         <button id="fsBtn" class="fullscreen-btn" onclick="toggleFullScreen()">[ ⛶ FULLSCREEN ]</button>
 
@@ -49,11 +48,9 @@
         <div id="doorBtns" style="display:none;"></div>
         <div class="touch-bar" id="touchBar"></div>
 
-        <!-- ЭКРАН ОТКЛЮЧЕНИЯ ЭЛЕКТРИЧЕСТВА (С ВИДЕО ФРЕДДИ) -->
         <div class="pwr-out-screen" id="pwrOut">
-            <!-- ССЫЛКА НА ВИДЕО ФРЕДДИ С МУЗЫКОЙ -->
             <video id="freddyVid" class="freddy-vid" loop playsinline>
-                <source src="https://files.catbox.moe/uvgcnk.mp4" type="video/mp4">
+                <source src="https://files.catbox.moe/k9d8l1.mp4" type="video/mp4">
             </video>
 
             <div class="pwr-out-text" style="z-index: 2;">POWER OUT</div>
@@ -63,11 +60,22 @@
         </div>
 
         <div class="scare-screen" id="scareScr"><div class="scare-text">GAME OVER</div></div>
+        
+        <!-- ЭКРАН ПОБЕДЫ С АНИМАЦИЕЙ ЧАСОВ 5 AM -> 6 AM -->
         <div class="win-screen" id="winScr">
-            <div class="win-big">6 AM</div>
+            <div class="fnaf-clock-box">
+                <div class="digit-container">
+                    <div class="digits-slide" id="digitSlide">
+                        <div>5</div>
+                        <div>6</div>
+                    </div>
+                </div>
+                <span class="am-text">AM</span>
+            </div>
             <div class="win-sub">YOU SURVIVED THE NIGHT!</div>
             <div id="confBox"></div>
         </div>
+
         <div class="flash" id="flash"></div>
     </div>
 

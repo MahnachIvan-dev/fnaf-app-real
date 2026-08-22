@@ -669,7 +669,85 @@ select, input[type="text"] {
     padding: 5px 0;
     border-bottom: 1px solid var(--border);
 }
+/* ===== ФИКС ПРОКРУТКИ АНИМАТРОНИКА ===== */
+.anim-page {
+    height: auto !important;
+    min-height: 100vh;
+    padding-bottom: 60px; /* Чтобы нижние кнопки не перекрывались телефоном */
+}
 
+/* ===== МИНИ-РАМКИ ДВЕРЕЙ У ОХРАННИКА (СЛЕВА ВВЕРХУ) ===== */
+.door-status-hud {
+    position: absolute;
+    top: 60px; /* Чуть ниже времени */
+    left: 15px;
+    display: flex;
+    gap: 10px;
+    z-index: 25;
+    pointer-events: none; /* Чтобы не мешали кликать */
+}
+
+.mini-door-frame {
+    width: 45px;
+    height: 70px;
+    border: 3px solid #333;
+    background: #0a0a0a;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 0 10px #000, 0 0 5px #000;
+}
+
+.mini-door-label {
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 4px;
+    z-index: 2;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.mini-door-metal {
+    position: absolute;
+    top: -100%; /* Дверь открыта (спрятана сверху) */
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Текстура железа */
+    background: repeating-linear-gradient(0deg, #444, #444 4px, #333 4px, #333 8px);
+    border-bottom: 4px solid var(--yellow); /* Желтая полоса снизу как во фнаф */
+    z-index: 5;
+    box-shadow: 0 5px 5px rgba(0,0,0,0.5);
+}
+
+/* Анимации опускания и поднятия дверей */
+.mini-door-frame.anim-close .mini-door-metal {
+    transition: top 0.3s ease-in; /* Быстрое закрытие */
+    top: 0;
+}
+
+.mini-door-frame.shut .mini-door-metal {
+    top: 0;
+}
+
+.mini-door-frame.anim-open .mini-door-metal {
+    transition: top 2s ease-out; /* Медленное открытие */
+    top: -100%;
+}
+
+/* Адаптивность для тач-панели (чтобы на телефонах было удобно нажимать) */
+@media (max-width: 768px) {
+    .touch-bar {
+        padding: 10px 5px;
+        gap: 8px;
+    }
+    .touch-btn {
+        padding: 15px 10px;
+        font-size: 1.2rem;
+        border-width: 3px;
+    }
+}
 /* ========== SHARED ENDGAME ========== */
 
 .end-overlay {

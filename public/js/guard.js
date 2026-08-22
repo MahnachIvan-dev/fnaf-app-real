@@ -67,6 +67,22 @@ const canvas = document.getElementById('camCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 const frameImg = new Image();
 
+// ===== ФУНКЦИЯ FULLSCREEN =====
+window.toggleFullScreen = function() {
+    const elem = document.documentElement;
+    if (!document.fullscreenElement) {
+        elem.requestFullscreen().catch(err => {
+            console.warn(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+        });
+        document.getElementById('fsBtn').textContent = '[ ✖ EXIT FS ]';
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+            document.getElementById('fsBtn').textContent = '[ ⛶ FULLSCREEN ]';
+        }
+    }
+};
+
 socket.emit('joinAsGuard', gameId, res => {
     if (!res || !res.success) {
         document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;">Game not found</div>';
@@ -98,18 +114,15 @@ function init() {
     updateUI();
 }
 
-const DOOR_NAMES = ['L', 'R', 'B']; // Left, Right, Back (Короткие названия для мини-рамок)
+const DOOR_NAMES = ['L', 'R', 'B'];
 
 function buildDoors() {
     const hud = document.getElementById('doorStatusHud');
     if (!hud) return;
-    
     let html = '';
     const count = S ? S.doorCount : 2;
-
     for(let i = 0; i < count; i++) {
-        html += `
-        <div class="mini-door-frame" id="miniDoor${i}">
+        html += `<div class="mini-door-frame" id="miniDoor${i}">
             <div class="mini-door-label">${DOOR_NAMES[i]}</div>
             <div class="mini-door-metal"></div>
         </div>`;
@@ -159,7 +172,6 @@ function buildTouchBar() {
         camBtn.addEventListener('click', toggleCams);
         camBtn.addEventListener('touchend', e => { e.preventDefault(); toggleCams(); });
     }
-    
     for(let i = 0; i < count; i++) {
         const el = document.getElementById('tDoor' + i);
         if (el) {
@@ -231,7 +243,6 @@ socket.on('cameraSwitched', d => {
     play(snd.camSw);
 });
 
-// ===== АНИМАЦИЯ НОВЫХ МИНИ-ДВЕРЕЙ =====
 socket.on('doorToggled', d => {
     S = d.state;
     const miniFrame = document.getElementById('miniDoor' + d.doorIndex);
@@ -239,8 +250,7 @@ socket.on('doorToggled', d => {
 
     if (miniFrame) {
         miniFrame.classList.remove('anim-close','anim-open');
-        void miniFrame.offsetWidth; // force reflow
-        
+        void miniFrame.offsetWidth; 
         if (d.closed) {
             miniFrame.classList.add('anim-close','shut');
             play(snd.dClose);
@@ -250,7 +260,6 @@ socket.on('doorToggled', d => {
             play(snd.dOpen);
         }
     }
-    
     if (tBtn) tBtn.classList.toggle('door-closed', d.closed);
 });
 
@@ -301,6 +310,8 @@ socket.on('cameraRepairedNotify', d => {
     }
 });
 
+socket.on('cameraRepairing', d => { S = d.state; });
+
 socket.on('powerOut', st => {
     S = st;
     camsUp = false;
@@ -312,6 +323,14 @@ socket.on('powerOut', st => {
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
     play(snd.pwrOut);
+
+    // ЗАПУСК ВИДЕО ФРЕДДИ
+    const fVid = document.getElementById('freddyVid');
+    if (fVid) {
+        fVid.currentTime = 0;
+        fVid.play().catch(e => console.log('Freddy video blocked:', e));
+    }
+
     setTimeout(() => {
         const rh = document.getElementById('rebootHint');
         if (rh) rh.style.display = 'block';
@@ -350,6 +369,14 @@ socket.on('rebootApproved', st => {
     if (rm) rm.textContent = '';
     const tb = document.getElementById('tReboot');
     if (tb) tb.style.display = 'none';
+    
+    // ОСТАНОВКА ВИДЕО ФРЕДДИ
+    const fVid = document.getElementById('freddyVid');
+    if (fVid) {
+        fVid.pause();
+        fVid.currentTime = 0;
+    }
+
     doFlash();
     play(snd.pwrOn);
     play(snd.amb);
@@ -373,6 +400,13 @@ socket.on('gameLost', d => {
     stop(snd.noise);
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
+
+    // ОСТАНОВКА ВИДЕО ФРЕДДИ (ОНО ЗАМЕНЯЕТСЯ СКРИМЕРОМ)
+    const fVid = document.getElementById('freddyVid');
+    if (fVid) {
+        fVid.pause();
+    }
+
     play(snd.scare);
     const ss = document.getElementById('scareScr');
     if (ss) ss.classList.add('on');
@@ -384,18 +418,17 @@ socket.on('gameWon', st => {
     stop(snd.noise);
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
+
+    const fVid = document.getElementById('freddyVid');
+    if (fVid) fVid.pause();
     
     play(snd.win);
     const ws = document.getElementById('winScr');
     if (ws) ws.classList.add('on');
     spawnConf();
 
-    snd.win.onended = () => {
-        play(snd.winMelody);
-    };
+    snd.win.onended = () => { play(snd.winMelody); };
 });
-
-// ===== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА =====
 
 function updateUI() {
     if (!S) return;
@@ -415,7 +448,6 @@ function updateUI() {
     const hu = document.getElementById('hUsage');
     if (hu) hu.textContent = 'Usage: ' + '█'.repeat(bars);
 
-    // Обновление состояния новых мини-дверей
     if (S.doors) {
         S.doors.forEach((d, i) => {
             const mf = document.getElementById('miniDoor' + i);

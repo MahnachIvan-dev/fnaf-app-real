@@ -18,13 +18,11 @@ const capCtx = capCvs ? capCvs.getContext('2d') : null;
 const statusTxt = document.getElementById('statusTxt');
 const btnEnable = document.getElementById('btnEnableCam');
 const btnRepair = document.getElementById('btnRepair');
-const repairBox = document.getElementById('repairBox');
 const repairBar = document.getElementById('repairBar');
 const repairFill = document.getElementById('repairFill');
 const repairStatus = document.getElementById('repairStatus');
 const brokenFull = document.getElementById('brokenFull');
 
-// ===== БЕЗОПАСНАЯ ФУНКЦИЯ ЗАГРУЗКИ АУДИО =====
 function au(src, loop, vol) {
     const a = new Audio();
     a.loop = !!loop;
@@ -37,7 +35,6 @@ function au(src, loop, vol) {
 const snd = {
     nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.5),
     winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.5),
-
     camUp:      au('https://files.catbox.moe/d8qyqe.mp3', false, 0.4),
     camDown:    au('https://files.catbox.moe/hljkyi.mp3', false, 0.4),
     camSw:      au('https://files.catbox.moe/4a9er6.mp3', false, 0.3),
@@ -56,7 +53,7 @@ function play(a) {
     try { 
         a.currentTime = 0; 
         const p = a.play(); 
-        if (p && p.catch) p.catch(e => console.warn('Audio play error ignored:', e));
+        if (p && p.catch) p.catch(() => {});
     } catch(e) {} 
 }
 
@@ -81,12 +78,17 @@ socket.emit('joinAsCamera', { gameId, camIndex }, res => {
     }
     if (statusTxt) statusTxt.textContent = 'Connected! Enable camera below.';
     if (btnEnable) btnEnable.style.display = 'inline-block';
+    
+    // Проверяем, была ли камера уже сломана до нашего захода
+    if (res.isBroken) {
+        triggerBrokenState();
+    }
+    
     startCam();
 });
 
 if (btnEnable) {
     btnEnable.addEventListener('click', startCam);
-    btnEnable.addEventListener('touchend', e => { e.preventDefault(); startCam(); });
 }
 
 async function startCam() {
@@ -100,7 +102,7 @@ async function startCam() {
             vid.style.display = 'block';
         }
         if (btnEnable) btnEnable.style.display = 'none';
-        if (statusTxt) {
+        if (statusTxt && !broken) {
             statusTxt.textContent = 'Camera active — streaming';
             statusTxt.style.color = 'var(--green)';
         }
@@ -129,18 +131,21 @@ function sendFrame() {
     socket.emit('cameraFrame', { gameId, camIndex, frameData: data });
 }
 
-if (btnRepair) {
-    btnRepair.addEventListener('click', doRepair);
-    btnRepair.addEventListener('touchend', e => { e.preventDefault(); doRepair(); });
+// КЛИК В ЛЮБОЕ МЕСТО ЭКРАНА ПОЛОМКИ
+if (brokenFull) {
+    brokenFull.addEventListener('click', doRepair);
+    brokenFull.addEventListener('touchend', e => { e.preventDefault(); doRepair(); });
 }
 
 function doRepair() {
-    if (!broken || repairing) return;
+    if (repairing) return;
+    broken = true;
     repairing = true;
     repairT0 = Date.now();
+    
     if (repairBar) repairBar.style.display = 'block';
-    if (repairStatus) repairStatus.textContent = 'Repairing...';
-    if (btnRepair) btnRepair.disabled = true;
+    if (repairStatus) repairStatus.textContent = 'REPAIRING... (20s)';
+    if (btnRepair) btnRepair.style.display = 'none';
 
     socket.emit('startRepairCamera', { gameId, camIndex });
     animRepair();
@@ -150,32 +155,38 @@ function animRepair() {
     if (!repairing) return;
     const p = Math.min((Date.now() - repairT0) / 20000, 1);
     if (repairFill) repairFill.style.width = (p * 100) + '%';
-    if (p < 1) requestAnimationFrame(animRepair);
+    if (p < 1) {
+        requestAnimationFrame(animRepair);
+    }
+}
+
+function triggerBrokenState() {
+    broken = true;
+    repairing = false;
+    if (brokenFull) brokenFull.classList.add('on');
+    if (btnRepair) {
+        btnRepair.style.display = 'inline-block';
+        btnRepair.disabled = false;
+    }
+    if (repairBar) repairBar.style.display = 'none';
+    if (repairStatus) repairStatus.textContent = '';
+    
+    play(snd.camBroken);
+    play(snd.noise);
 }
 
 // ===== СОБЫТИЯ И ЗВУКИ =====
 
-socket.on('cameraBroken', () => {
-    broken = true;
-    if (brokenFull) brokenFull.classList.add('on');
-    if (repairBox) repairBox.classList.add('on');
-    if (btnRepair) btnRepair.disabled = false;
-    if (repairBar) repairBar.style.display = 'none';
-    if (repairStatus) repairStatus.textContent = '';
-    repairing = false;
-    if (statusTxt) {
-        statusTxt.textContent = 'CAMERA BROKEN!';
-        statusTxt.style.color = 'var(--red)';
-    }
-    play(snd.camBroken);
-    play(snd.noise);
+socket.on('cameraBroken', (data) => {
+    if (data && typeof data.camIndex === 'number' && data.camIndex !== camIndex) return;
+    triggerBrokenState();
 });
 
-socket.on('cameraRepaired', () => {
+socket.on('cameraRepaired', (data) => {
+    if (data && typeof data.camIndex === 'number' && data.camIndex !== camIndex) return;
     broken = false;
     repairing = false;
     if (brokenFull) brokenFull.classList.remove('on');
-    if (repairBox) repairBox.classList.remove('on');
     if (repairBar) repairBar.style.display = 'none';
     if (repairStatus) repairStatus.textContent = '';
     if (statusTxt) {
@@ -183,6 +194,15 @@ socket.on('cameraRepaired', () => {
         statusTxt.style.color = 'var(--green)';
     }
     stop(snd.noise);
+});
+
+socket.on('gameState', (st) => {
+    if (st && st.cameras && st.cameras[camIndex]) {
+        const c = st.cameras[camIndex];
+        if (c.broken && !broken && !repairing) {
+            triggerBrokenState();
+        }
+    }
 });
 
 socket.on('camerasToggled', d => {
@@ -200,18 +220,10 @@ socket.on('doorToggled', d => {
 socket.on('powerOut', () => {
     stop(snd.nightStart);
     play(snd.pwrOut);
-    if (statusTxt) {
-        statusTxt.textContent = '⚠️ POWER OUT!';
-        statusTxt.style.color = 'var(--red)';
-    }
 });
 
 socket.on('rebootApproved', () => {
     play(snd.pwrOn);
-    if (!broken && statusTxt) {
-        statusTxt.textContent = 'Camera active — streaming';
-        statusTxt.style.color = 'var(--green)';
-    }
 });
 
 socket.on('gameWon', () => {
@@ -223,9 +235,7 @@ socket.on('gameWon', () => {
     const we = document.getElementById('winEnd');
     if (we) we.classList.add('on');
 
-    snd.win.onended = () => {
-        play(snd.winMelody);
-    };
+    snd.win.onended = () => { play(snd.winMelody); };
 });
 
 socket.on('gameLost', () => {
@@ -239,7 +249,6 @@ socket.on('gameLost', () => {
 });
 
 socket.on('gameStarted', () => {
-    if (statusTxt) statusTxt.textContent = 'NIGHT STARTED — Camera active';
     play(snd.nightStart);
 });
 

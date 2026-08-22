@@ -18,27 +18,31 @@
 
         <button class="btn" id="btnEnableCam" style="display:none">📷 ENABLE CAMERA</button>
 
-        <!-- Repair -->
-        <div class="repair-box" id="repairBox">
-            <div style="color:var(--yellow); font-size:1.2rem; margin-bottom:10px;">CAMERA BROKEN!</div>
-            <button class="btn yellow" id="btnRepair">🔧 REPAIR (20s)</button>
-            <div class="progress-bar" id="repairBar" style="margin-top:10px; display:none;">
-                <div class="fill" id="repairFill"></div>
-            </div>
-            <div id="repairStatus" style="color:var(--green); margin-top:8px;"></div>
-        </div>
-
-        <!-- Broken full screen -->
-        <div class="broken-full" id="brokenFull">
+        <!-- Экран поломки (Кликабелен ВЕСЬ экран + отдельно кнопка) -->
+        <div class="broken-full" id="brokenFull" style="cursor:pointer;">
             <div class="noise-bg"></div>
-            <div style="z-index:101; color:var(--red); font-family:'Press Start 2P',cursive; font-size:clamp(.8rem,3vw,1.2rem); text-align:center; padding:20px; line-height:2;">
-                CAMERA<br>MALFUNCTION<br><br>
-                <span style="color:var(--yellow); font-size:.8em;">Tap REPAIR below</span>
+            <div style="z-index:101; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; width:100%; height:100%; pointer-events:auto;">
+                <div style="color:var(--red); font-family:'Press Start 2P',cursive; font-size:clamp(.9rem, 4vw, 1.4rem); line-height:1.8; margin-bottom:20px;">
+                    CAMERA<br>MALFUNCTION
+                </div>
+                
+                <div style="color:var(--yellow); font-size:1.2rem; margin-bottom:15px; animation:blink 1s infinite;">
+                    [ TAP ANYWHERE TO REPAIR ]
+                </div>
+
+                <button class="btn yellow" id="btnRepair" style="font-size:1.4rem; padding:15px 30px; cursor:pointer; touch-action:manipulation; z-index:102;">
+                    🔧 REPAIR (20s)
+                </button>
+
+                <div class="progress-bar" id="repairBar" style="margin-top:20px; display:none; width:80%; max-width:300px; height:20px; border:2px solid var(--yellow);">
+                    <div class="fill" id="repairFill" style="height:100%; background:var(--yellow); width:0%;"></div>
+                </div>
+                <div id="repairStatus" style="color:var(--green); font-size:1.2rem; margin-top:12px;"></div>
             </div>
         </div>
     </div>
 
-    <!-- End screens -->
+    <!-- Финальные экраны -->
     <div class="end-overlay" id="winEnd">
         <div class="win-big" style="font-size:clamp(1.5rem,8vw,3rem);">6 AM</div>
         <div class="win-sub">NIGHT COMPLETE</div>

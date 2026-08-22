@@ -63,6 +63,16 @@ function stop(a) {
     try { a.pause(); a.currentTime = 0; } catch(e) {} 
 }
 
+// ===== РАЗБЛОКИРОВКА АУДИО НА ТЕЛЕФОНАХ =====
+document.getElementById('audioUnlock').addEventListener('click', function() {
+    this.style.display = 'none';
+    // Проигрываем и сразу ставим на паузу любой звук, чтобы браузер разрешил звук
+    try {
+        snd.amb.play().catch(()=>{});
+        snd.amb.pause();
+    } catch(e) {}
+});
+
 const canvas = document.getElementById('camCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 const frameImg = new Image();
@@ -70,9 +80,7 @@ const frameImg = new Image();
 window.toggleFullScreen = function() {
     const elem = document.documentElement;
     if (!document.fullscreenElement) {
-        elem.requestFullscreen().catch(err => {
-            console.warn(`Error attempting to enable full-screen mode: ${err.message}`);
-        });
+        elem.requestFullscreen().catch(() => {});
         document.getElementById('fsBtn').textContent = '[ ✖ EXIT FS ]';
     } else {
         if (document.exitFullscreen) {
@@ -83,10 +91,7 @@ window.toggleFullScreen = function() {
 };
 
 socket.emit('joinAsGuard', gameId, res => {
-    if (!res || !res.success) {
-        document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;">Game not found</div>';
-        return;
-    }
+    if (!res || !res.success) return;
     S = res.state;
     mode = S.mode;
     init();
@@ -158,12 +163,9 @@ function buildTouchBar() {
     if (!bar) return;
     let h = `<div class="touch-btn" id="tCam">📷 CAM</div>`;
     const count = S ? S.doorCount : 2;
-    const FULL_NAMES = ['LEFT', 'RIGHT', 'BACK'];
-
     for(let i = 0; i < count; i++) {
-        h += `<div class="touch-btn" id="tDoor${i}">🚪 ${FULL_NAMES[i]}</div>`;
+        h += `<div class="touch-btn" id="tDoor${i}">🚪 DOOR ${i+1}</div>`;
     }
-    h += `<div class="touch-btn" id="tReboot" style="display:none; border-color:var(--yellow); color:var(--yellow);">🔄 REBOOT</div>`;
     bar.innerHTML = h;
 
     const camBtn = document.getElementById('tCam');
@@ -178,21 +180,23 @@ function buildTouchBar() {
             el.addEventListener('touchend', e => { e.preventDefault(); doDoor(i); });
         }
     }
-    const rb = document.getElementById('tReboot');
-    if (rb) {
-        rb.addEventListener('click', doReboot);
-        rb.addEventListener('touchend', e => { e.preventDefault(); doReboot(); });
-    }
 }
 
 function toggleCams() { socket.emit('toggleCameras', gameId); }
 function switchCam(i) { socket.emit('switchCamera', { gameId, camIndex: i }); }
 
 function doReboot() {
-    if (!S || !S.systemOff || rebooting) return;
+    if (!S || !S.systemOff || rebooting || S.isDeadPower) return;
     rebooting = true;
     rebootT0 = Date.now();
     socket.emit('startReboot', gameId);
+}
+
+// Привязка ОГРОМНОЙ кнопки REBOOT
+const bigRb = document.getElementById('bigRebootBtn');
+if (bigRb) {
+    bigRb.addEventListener('click', doReboot);
+    bigRb.addEventListener('touchend', e => { e.preventDefault(); doReboot(); });
 }
 
 document.addEventListener('keydown', e => {
@@ -321,26 +325,31 @@ socket.on('powerOut', st => {
     stop(snd.noise);
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
-    play(snd.pwrOut);
 
     const fVid = document.getElementById('freddyVid');
-    if (fVid) {
-        fVid.currentTime = 0;
-        fVid.play().catch(e => console.log('Freddy video blocked:', e));
+    const bigBtn = document.getElementById('bigRebootBtn');
+
+    if (S.isDeadPower) {
+        // ЭНЕРГИЯ = 0%. Включаем видео Фредди, скрываем кнопку перезагрузки
+        if (bigBtn) bigBtn.style.display = 'none';
+        if (fVid) {
+            fVid.style.display = 'block';
+            fVid.currentTime = 0;
+            fVid.play().catch(() => {});
+        }
+    } else {
+        // САБОТАЖ АНИМАТРОНИКА. Показываем ОГРОМНУЮ КНОПКУ РЕБУТА
+        if (fVid) { fVid.pause(); fVid.style.display = 'none'; }
+        if (bigBtn) bigBtn.style.display = 'block';
     }
 
-    setTimeout(() => {
-        const rh = document.getElementById('rebootHint');
-        if (rh) rh.style.display = 'block';
-        const tb = document.getElementById('tReboot');
-        if (tb) tb.style.display = 'block';
-    }, 3000);
+    play(snd.pwrOut);
 });
 
 socket.on('rebootStarted', st => {
     S = st;
-    const rh = document.getElementById('rebootHint');
-    if (rh) rh.style.display = 'none';
+    const bigBtn = document.getElementById('bigRebootBtn');
+    if (bigBtn) bigBtn.style.display = 'none';
     const rb = document.getElementById('rebootBar');
     if (rb) rb.style.display = 'block';
     const rm = document.getElementById('rebootMsg');
@@ -365,15 +374,7 @@ socket.on('rebootApproved', st => {
     if (rb) rb.style.display = 'none';
     const rm = document.getElementById('rebootMsg');
     if (rm) rm.textContent = '';
-    const tb = document.getElementById('tReboot');
-    if (tb) tb.style.display = 'none';
     
-    const fVid = document.getElementById('freddyVid');
-    if (fVid) {
-        fVid.pause();
-        fVid.currentTime = 0;
-    }
-
     doFlash();
     play(snd.pwrOn);
     play(snd.amb);
@@ -387,8 +388,8 @@ socket.on('rebootDenied', st => {
     if (rb) rb.style.display = 'none';
     const rm = document.getElementById('rebootMsg');
     if (rm) rm.textContent = 'REBOOT DENIED. Try again.';
-    const rh = document.getElementById('rebootHint');
-    if (rh) rh.style.display = 'block';
+    const bigBtn = document.getElementById('bigRebootBtn');
+    if (bigBtn) bigBtn.style.display = 'block';
 });
 
 socket.on('gameLost', d => {
@@ -406,7 +407,6 @@ socket.on('gameLost', d => {
     if (ss) ss.classList.add('on');
 });
 
-// ===== ПОБЕДА (6:00 AM) — ПРЕРАВАНИЕ ВСЕГО И ЗАПУСК 5 -> 6 AM =====
 socket.on('gameWon', st => {
     S = st;
     stop(snd.amb);
@@ -414,23 +414,20 @@ socket.on('gameWon', st => {
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
 
-    // Стираем видео Фредди и экран отключения
     const fVid = document.getElementById('freddyVid');
     if (fVid) fVid.pause();
     const po = document.getElementById('pwrOut');
     if (po) po.classList.remove('on');
 
-    // Показываем экран победы
     const ws = document.getElementById('winScr');
     if (ws) ws.classList.add('on');
 
     const slide = document.getElementById('digitSlide');
-    if (slide) slide.classList.remove('shift'); // Убеждаемся что стоим на 5 AM
+    if (slide) slide.classList.remove('shift');
 
-    // Запускаем переключение на 6 AM + Звук победы
     setTimeout(() => {
-        if (slide) slide.classList.add('shift'); // Анимация смещения 5 -> 6
-        play(snd.win); // Звон часов и YAY!
+        if (slide) slide.classList.add('shift');
+        play(snd.win);
         spawnConf();
     }, 1000);
 
@@ -470,7 +467,10 @@ function updateUI() {
     updateCamView();
 
     const po = document.getElementById('pwrOut');
-    if (po && S.systemOff) po.classList.add('on');
+    if (po && S.systemOff && !S.isDeadPower) {
+        po.classList.add('on');
+        document.getElementById('bigRebootBtn').style.display = 'block';
+    }
 }
 
 function updateCamView() {

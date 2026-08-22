@@ -8,7 +8,12 @@
 </head>
 <body>
     <div class="guard-root" id="root">
-        <!-- Office bg (mode 2) -->
+        <!-- Кнопка сброса звонка -->
+        <button id="muteCallBtn" class="mute-call-btn" style="display:none;" onclick="mutePhoneCall()">[ MUTE CALL ]</button>
+
+        <!-- Новые мини-двери слева вверху -->
+        <div class="door-status-hud" id="doorStatusHud"></div>
+
         <div class="office" id="office" style="display:none">
             <div class="office-desk"></div>
             <div class="office-monitor-btn" id="officeMonBtn">
@@ -16,7 +21,6 @@
             </div>
         </div>
 
-        <!-- Camera container -->
         <div class="cam-container" id="camCont">
             <div class="cam-view" id="camView">
                 <canvas id="camCanvas"></canvas>
@@ -30,7 +34,6 @@
             <div class="cam-btns" id="camBtns"></div>
         </div>
 
-        <!-- HUD -->
         <div class="hud">
             <div class="hud-top">
                 <div class="hud-time" id="hTime">12 AM</div>
@@ -42,15 +45,12 @@
             </div>
         </div>
 
-        <!-- Door panels -->
-        <div id="doorPanels"></div>
-        <!-- Door buttons -->
-        <div id="doorBtns"></div>
+        <!-- Кнопки дверей для ПК (Q,W,E) -->
+        <div id="doorBtns" style="display:none;"></div>
 
-        <!-- Touch bar -->
+        <!-- Сенсорные кнопки для телефонов -->
         <div class="touch-bar" id="touchBar"></div>
 
-        <!-- Power out -->
         <div class="pwr-out-screen" id="pwrOut">
             <div class="pwr-out-text">POWER OUT</div>
             <div class="reboot-hint" id="rebootHint" style="display:none">Press H or tap REBOOT</div>
@@ -58,10 +58,8 @@
             <div id="rebootMsg"></div>
         </div>
 
-        <!-- Scare -->
         <div class="scare-screen" id="scareScr"><div class="scare-text">GAME OVER</div></div>
 
-        <!-- Win -->
         <div class="win-screen" id="winScr">
             <div class="win-big">6 AM</div>
             <div class="win-sub">YOU SURVIVED THE NIGHT!</div>

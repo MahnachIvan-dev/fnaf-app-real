@@ -8,10 +8,11 @@
 </head>
 <body>
     <div class="guard-root" id="root">
-        <!-- Кнопка сброса звонка -->
+        
+        <!-- КНОПКИ УПРАВЛЕНИЯ -->
         <button id="muteCallBtn" class="mute-call-btn" style="display:none;" onclick="mutePhoneCall()">[ MUTE CALL ]</button>
+        <button id="fsBtn" class="fullscreen-btn" onclick="toggleFullScreen()">[ ⛶ FULLSCREEN ]</button>
 
-        <!-- Новые мини-двери слева вверху -->
         <div class="door-status-hud" id="doorStatusHud"></div>
 
         <div class="office" id="office" style="display:none">
@@ -45,27 +46,28 @@
             </div>
         </div>
 
-        <!-- Кнопки дверей для ПК (Q,W,E) -->
         <div id="doorBtns" style="display:none;"></div>
-
-        <!-- Сенсорные кнопки для телефонов -->
         <div class="touch-bar" id="touchBar"></div>
 
+        <!-- ЭКРАН ОТКЛЮЧЕНИЯ ЭЛЕКТРИЧЕСТВА (С ВИДЕО ФРЕДДИ) -->
         <div class="pwr-out-screen" id="pwrOut">
-            <div class="pwr-out-text">POWER OUT</div>
-            <div class="reboot-hint" id="rebootHint" style="display:none">Press H or tap REBOOT</div>
-            <div class="progress-bar" id="rebootBar" style="display:none"><div class="fill" id="rebootFill"></div></div>
-            <div id="rebootMsg"></div>
+            <!-- ССЫЛКА НА ВИДЕО ФРЕДДИ С МУЗЫКОЙ -->
+            <video id="freddyVid" class="freddy-vid" loop playsinline>
+                <source src="https://files.catbox.moe/k9d8l1.mp4" type="video/mp4">
+            </video>
+
+            <div class="pwr-out-text" style="z-index: 2;">POWER OUT</div>
+            <div class="reboot-hint" id="rebootHint" style="display:none; z-index: 2;">Press H or tap REBOOT</div>
+            <div class="progress-bar" id="rebootBar" style="display:none; z-index: 2;"><div class="fill" id="rebootFill"></div></div>
+            <div id="rebootMsg" style="z-index: 2;"></div>
         </div>
 
         <div class="scare-screen" id="scareScr"><div class="scare-text">GAME OVER</div></div>
-
         <div class="win-screen" id="winScr">
             <div class="win-big">6 AM</div>
             <div class="win-sub">YOU SURVIVED THE NIGHT!</div>
             <div id="confBox"></div>
         </div>
-
         <div class="flash" id="flash"></div>
     </div>
 

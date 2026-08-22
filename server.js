@@ -18,14 +18,13 @@ const games = {};
 
 // ===== НАСТРОЙКИ ВРЕМЕНИ И ЭНЕРГИИ =====
 const HOUR_DURATION_MS = 4 * 60 * 1000; // 1 час = 4 минуты (240 000 мс)
-const NIGHT_DURATION_MS = HOUR_DURATION_MS * 6; // Вся ночь = 24 минуты
 const MAX_POWER = 100;
 const TICK_INTERVAL = 500; // Проверка каждые 0.5 сек
 
-// Баланс расхода (в % в секунду)
-const BASE_POWER_DRAIN = 0.025;   // База (пассивный режим)
-const CAMERA_POWER_DRAIN = 0.020; // При поднятом планшете
-const DOOR_POWER_DRAIN = 0.057;   // За КАЖДУЮ закрытую дверь (2 двери = ~0.139%/сек -> смерть на 3 AM)
+// Баланс расхода (% в секунду)
+const BASE_POWER_DRAIN = 0.025;   
+const CAMERA_POWER_DRAIN = 0.020; 
+const DOOR_POWER_DRAIN = 0.057;   
 
 const REBOOT_TIME = 15000;
 const POWER_OUT_DEATH_TIME = 35000;
@@ -43,8 +42,10 @@ function createGame(settings) {
         },
         state: 'lobby',
         power: MAX_POWER,
+        powerAtOut: MAX_POWER, // Запоминаем энергию перед отключением
         hour: 0,
-        timeStarted: null,
+        activePlayTimeMs: 0,   // Накопленное активное время (без учета выключенного света)
+        lastTickTime: null,
         camerasUp: false,
         currentCamera: 0,
         doors: [],
@@ -72,9 +73,7 @@ function createGame(settings) {
 }
 
 function getGameHour(game) {
-    if (!game.timeStarted) return 0;
-    const elapsed = Date.now() - game.timeStarted;
-    return Math.min(Math.floor(elapsed / HOUR_DURATION_MS), 6);
+    return Math.min(Math.floor((game.activePlayTimeMs || 0) / HOUR_DURATION_MS), 6);
 }
 
 function getTimeString(hour) {
@@ -88,7 +87,7 @@ function getPowerDrain(game) {
     let drain = BASE_POWER_DRAIN;
     if (game.camerasUp) drain += CAMERA_POWER_DRAIN;
     game.doors.forEach(d => { if (d.closed) drain += DOOR_POWER_DRAIN; });
-    return drain; // Суммарный процент расхода в секунду
+    return drain;
 }
 
 function getPublicState(game) {
@@ -113,41 +112,53 @@ function getPublicState(game) {
     };
 }
 
-// ===== ИГРОВОЙ ЦИКЛ =====
+// ===== ИГРОВОЙ ЦИКЛ С ЗАМОРОЗКОЙ ВРЕМЕНИ =====
 setInterval(() => {
+    const now = Date.now();
+
     Object.values(games).forEach(game => {
         if (game.state !== 'playing') return;
 
-        // Обновление часа
-        const newHour = getGameHour(game);
-        if (newHour !== game.hour) {
-            game.hour = newHour;
-            if (game.hour >= 6) {
-                game.state = 'won';
-                io.to('game_' + game.id).emit('gameWon', getPublicState(game));
-                return;
-            }
-        }
+        const last = game.lastTickTime || now;
+        const delta = now - last;
+        game.lastTickTime = now;
 
-        // Списание энергии (TICK_INTERVAL / 1000 = 0.5 секунды)
-        if (!game.systemOff && game.power > 0) {
-            game.power -= getPowerDrain(game) * (TICK_INTERVAL / 1000);
-            if (game.power <= 0) {
-                game.power = 0;
-                game.systemOff = true;
-                game.camerasUp = false;
-                game.doors.forEach(d => { d.closed = false; d.animating = false; });
-                game.powerOutTime = Date.now();
-                io.to('game_' + game.id).emit('powerOut', getPublicState(game));
-            }
-        }
+        // Если ЭЛЕКТРИЧЕСТВО ВКЛЮЧЕНО -> Время идет, энергия тратится
+        if (!game.systemOff) {
+            game.activePlayTimeMs += delta;
 
-        // Проигрыш через 35 секунд после отключения питания, если не сделали перезагрузку
-        if (game.systemOff && game.powerOutTime && !game.rebootInProgress && !game.rebootApprovalNeeded) {
-            if (Date.now() - game.powerOutTime > POWER_OUT_DEATH_TIME) {
-                game.state = 'lost';
-                io.to('game_' + game.id).emit('gameLost', { ...getPublicState(game), reason: 'power_out' });
-                return;
+            // Обновление часа
+            const newHour = getGameHour(game);
+            if (newHour !== game.hour) {
+                game.hour = newHour;
+                if (game.hour >= 6) {
+                    game.state = 'won';
+                    io.to('game_' + game.id).emit('gameWon', getPublicState(game));
+                    return;
+                }
+            }
+
+            // Расход энергии
+            if (game.power > 0) {
+                game.power -= getPowerDrain(game) * (delta / 1000);
+                if (game.power <= 0) {
+                    game.power = 0;
+                    game.powerAtOut = 0;
+                    game.systemOff = true;
+                    game.camerasUp = false;
+                    game.doors.forEach(d => { d.closed = false; d.animating = false; });
+                    game.powerOutTime = Date.now();
+                    io.to('game_' + game.id).emit('powerOut', getPublicState(game));
+                }
+            }
+        } else {
+            // Если ЭЛЕКТРИЧЕСТВО ВЫКЛЮЧЕНО -> ВРЕМЯ ЗАМОРОЖЕНО (activePlayTimeMs не растет!)
+            if (game.powerOutTime && !game.rebootInProgress && !game.rebootApprovalNeeded) {
+                if (now - game.powerOutTime > POWER_OUT_DEATH_TIME) {
+                    game.state = 'lost';
+                    io.to('game_' + game.id).emit('gameLost', { ...getPublicState(game), reason: 'power_out' });
+                    return;
+                }
             }
         }
 
@@ -231,9 +242,11 @@ io.on('connection', (socket) => {
         if (!game) return;
 
         game.state = 'playing';
-        game.timeStarted = Date.now();
+        game.activePlayTimeMs = 0;
+        game.lastTickTime = Date.now();
         game.hour = 0;
         game.power = MAX_POWER;
+        game.powerAtOut = MAX_POWER;
         game.systemOff = false;
         game.camerasUp = false;
         game.currentCamera = 0;
@@ -328,10 +341,13 @@ io.on('connection', (socket) => {
         }, 20000);
     });
 
+    // ОКТЛЮЧЕНИЕ СВЕТА АНИМАТРОНИКОМ
     socket.on('killPower', ({ gameId }) => {
         const game = games[gameId];
         if (!game || game.state !== 'playing' || game.systemOff) return;
 
+        // Запоминаем текущий уровень энергии (например, 97%)
+        game.powerAtOut = game.power; 
         game.power = 0;
         game.systemOff = true;
         game.camerasUp = false;
@@ -357,6 +373,7 @@ io.on('connection', (socket) => {
         }, REBOOT_TIME);
     });
 
+    // ОДОБРЕНИЕ ПЕРЕЗАГРУЗКИ
     socket.on('approveReboot', ({ gameId }) => {
         const game = games[gameId];
         if (!game || game.state !== 'playing') return;
@@ -365,7 +382,12 @@ io.on('connection', (socket) => {
         game.rebootInProgress = false;
         game.rebootApprovalNeeded = false;
         game.powerOutTime = null;
-        game.power = 30;
+        
+        // Списываем 5% от уровня энергии, который был до отключения (например: было 97% -> стало 92%)
+        const restoredPower = Math.max(1, game.powerAtOut - 5);
+        game.power = Math.round(restoredPower * 10) / 10;
+
+        game.lastTickTime = Date.now(); // Сбрасываем таймер тика, чтобы не было скачка времени
 
         io.to('game_' + gameId).emit('rebootApproved', getPublicState(game));
     });

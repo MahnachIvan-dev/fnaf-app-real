@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <!-- ЗАГЛУШКА ДЛЯ РАЗБЛОКИРОВКИ ЗВУКА НА ТЕЛЕФОНАХ -->
+    <div id="audioUnlock" style="position:fixed; inset:0; z-index:99999; background:#000; color:var(--green); display:flex; align-items:center; justify-content:center; font-size:1.5rem; cursor:pointer; font-family:'Press Start 2P', cursive; text-align:center; padding:20px;">
+        TAP ANYWHERE<br>TO ENTER SECURITY ROOM
+    </div>
+
     <div class="guard-root" id="root">
         
         <button id="muteCallBtn" class="mute-call-btn" style="display:none;" onclick="mutePhoneCall()">[ MUTE CALL ]</button>
@@ -49,19 +54,24 @@
         <div class="touch-bar" id="touchBar"></div>
 
         <div class="pwr-out-screen" id="pwrOut">
-            <video id="freddyVid" class="freddy-vid" loop playsinline>
+            <!-- ВИДЕО ФРЕДДИ (ПОКАЗЫВАЕТСЯ ТОЛЬКО ПРИ 0%) -->
+            <video id="freddyVid" class="freddy-vid" loop playsinline style="display:none;">
                 <source src="https://files.catbox.moe/uvgcnk.mp4" type="video/mp4">
             </video>
 
             <div class="pwr-out-text" style="z-index: 2;">POWER OUT</div>
-            <div class="reboot-hint" id="rebootHint" style="display:none; z-index: 2;">Press H or tap REBOOT</div>
-            <div class="progress-bar" id="rebootBar" style="display:none; z-index: 2;"><div class="fill" id="rebootFill"></div></div>
-            <div id="rebootMsg" style="z-index: 2;"></div>
+            
+            <!-- ОГРОМНАЯ КНОПКА ПЕРЕЗАГРУЗКИ ДЛЯ ТЕЛЕФОНОВ И ПК -->
+            <button class="btn yellow" id="bigRebootBtn" style="display:none; z-index: 2; margin-top:30px; font-size:1.5rem; padding:20px; text-align:center;">
+                🔄 REBOOT SYSTEM [H]
+            </button>
+
+            <div class="progress-bar" id="rebootBar" style="display:none; z-index: 2; margin-top:30px;"><div class="fill" id="rebootFill"></div></div>
+            <div id="rebootMsg" style="z-index: 2; color:var(--yellow); font-size:1.2rem; margin-top:10px;"></div>
         </div>
 
         <div class="scare-screen" id="scareScr"><div class="scare-text">GAME OVER</div></div>
         
-        <!-- ЭКРАН ПОБЕДЫ С АНИМАЦИЕЙ ЧАСОВ 5 AM -> 6 AM -->
         <div class="win-screen" id="winScr">
             <div class="fnaf-clock-box">
                 <div class="digit-container">

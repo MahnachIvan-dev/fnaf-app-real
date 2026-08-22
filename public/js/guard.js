@@ -15,30 +15,26 @@ let curCam = 0;
 let rebooting = false;
 let rebootT0 = 0;
 
-// ===== БЕЗОПАСНАЯ ФУНКЦИЯ ЗАГРУЗКИ АУДИО =====
 function au(src, loop, vol) {
     const a = new Audio();
     a.loop = !!loop;
     a.volume = vol !== undefined ? vol : 0.4;
-    a.onerror = () => { console.warn('Audio failed to load:', src); };
+    a.onerror = () => { console.warn('Audio failed:', src); };
     a.src = src;
     return a;
 }
 
-// 📞 ССЫЛКИ НА ЗВОНКИ ТЕЛЕФОННОГО ПАРНЯ (5 НОЧЕЙ)
 const PHONE_CALL_URLS = {
-    1: 'https://files.catbox.moe/9hb3et.ogg', // Ночь 1
-    2: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 2
-    3: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 3
-    4: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 4
-    5: 'https://files.catbox.moe/8kk4je.ogg', // Ночь 5
+    1: 'https://files.catbox.moe/9hb3et.ogg',
+    2: 'https://files.catbox.moe/8kk4je.ogg',
+    3: 'https://files.catbox.moe/8kk4je.ogg',
+    4: 'https://files.catbox.moe/8kk4je.ogg',
+    5: 'https://files.catbox.moe/8kk4je.ogg',
 };
 
-// 🔊 ОБЪЕКТ СО ВСЕМИ ЗВУКАМИ ОХРАННИКА
 const snd = {
-    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6), // Мелодия старта ночи
-    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6), // Мелодия после 6 AM
-
+    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6),
+    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
     amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
     camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
     camDown:  au('https://files.catbox.moe/hljkyi.mp3', false, 0.5),
@@ -58,7 +54,7 @@ function play(a) {
     try { 
         a.currentTime = 0; 
         const p = a.play(); 
-        if (p && p.catch) p.catch(e => console.warn('Audio play error ignored:', e));
+        if (p && p.catch) p.catch(() => {});
     } catch(e) {} 
 }
 
@@ -102,35 +98,23 @@ function init() {
     updateUI();
 }
 
-const DOOR_NAMES = ['LEFT','RIGHT','BACK'];
-const DOOR_KEYS = ['Q','W','E'];
-const DOOR_POS = n => n===1 ? ['left'] : n===2 ? ['left','right'] : ['left','right','center'];
+const DOOR_NAMES = ['L', 'R', 'B']; // Left, Right, Back (Короткие названия для мини-рамок)
 
 function buildDoors() {
-    const pos = DOOR_POS(S ? S.doorCount : 2);
-    let pH = '', bH = '';
-    pos.forEach((p, i) => {
-        pH += `<div class="door-panel ${p}" id="dPanel${i}"><div class="stripe"></div></div>`;
-        const pc = p === 'center' ? 'pos-center' : 'pos-' + p;
-        bH += `<div class="door-btns-wrap ${pc}">
-            <div class="door-toggle open" id="dBtn${i}" data-door="${i}">
-                <span class="d-icon">🚪</span>
-                <span class="d-name">${DOOR_NAMES[i]||'DOOR '+(i+1)}</span>
-                <span class="d-key">[${DOOR_KEYS[i]}]</span>
-            </div>
+    const hud = document.getElementById('doorStatusHud');
+    if (!hud) return;
+    
+    let html = '';
+    const count = S ? S.doorCount : 2;
+
+    for(let i = 0; i < count; i++) {
+        html += `
+        <div class="mini-door-frame" id="miniDoor${i}">
+            <div class="mini-door-label">${DOOR_NAMES[i]}</div>
+            <div class="mini-door-metal"></div>
         </div>`;
-    });
-    const dp = document.getElementById('doorPanels');
-    const db = document.getElementById('doorBtns');
-    if (dp) dp.innerHTML = pH;
-    if (db) db.innerHTML = bH;
-    pos.forEach((_, i) => {
-        const el = document.getElementById('dBtn' + i);
-        if (el) {
-            el.addEventListener('click', () => doDoor(i));
-            el.addEventListener('touchend', e => { e.preventDefault(); doDoor(i); });
-        }
-    });
+    }
+    hud.innerHTML = html;
 }
 
 function doDoor(i) { socket.emit('toggleDoor', { gameId, doorIndex: i }); }
@@ -161,10 +145,13 @@ function buildTouchBar() {
     const bar = document.getElementById('touchBar');
     if (!bar) return;
     let h = `<div class="touch-btn" id="tCam">📷 CAM</div>`;
-    DOOR_POS(S ? S.doorCount : 2).forEach((_, i) => {
-        h += `<div class="touch-btn" id="tDoor${i}">🚪 ${DOOR_NAMES[i]||'D'+(i+1)}</div>`;
-    });
-    h += `<div class="touch-btn" id="tReboot" style="display:none">🔄 REBOOT</div>`;
+    const count = S ? S.doorCount : 2;
+    const FULL_NAMES = ['LEFT', 'RIGHT', 'BACK'];
+
+    for(let i = 0; i < count; i++) {
+        h += `<div class="touch-btn" id="tDoor${i}">🚪 ${FULL_NAMES[i]}</div>`;
+    }
+    h += `<div class="touch-btn" id="tReboot" style="display:none; border-color:var(--yellow); color:var(--yellow);">🔄 REBOOT</div>`;
     bar.innerHTML = h;
 
     const camBtn = document.getElementById('tCam');
@@ -172,13 +159,14 @@ function buildTouchBar() {
         camBtn.addEventListener('click', toggleCams);
         camBtn.addEventListener('touchend', e => { e.preventDefault(); toggleCams(); });
     }
-    DOOR_POS(S ? S.doorCount : 2).forEach((_, i) => {
+    
+    for(let i = 0; i < count; i++) {
         const el = document.getElementById('tDoor' + i);
         if (el) {
             el.addEventListener('click', () => doDoor(i));
             el.addEventListener('touchend', e => { e.preventDefault(); doDoor(i); });
         }
-    });
+    }
     const rb = document.getElementById('tReboot');
     if (rb) {
         rb.addEventListener('click', doReboot);
@@ -214,7 +202,7 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
-// ===== СОБЫТИЯ СЕРВЕРА =====
+// ===== SOCKET EVENTS =====
 
 socket.on('gameStarted', st => {
     S = st; mode = st.mode;
@@ -243,25 +231,26 @@ socket.on('cameraSwitched', d => {
     play(snd.camSw);
 });
 
+// ===== АНИМАЦИЯ НОВЫХ МИНИ-ДВЕРЕЙ =====
 socket.on('doorToggled', d => {
     S = d.state;
-    const panel = document.getElementById('dPanel' + d.doorIndex);
-    const btn = document.getElementById('dBtn' + d.doorIndex);
+    const miniFrame = document.getElementById('miniDoor' + d.doorIndex);
     const tBtn = document.getElementById('tDoor' + d.doorIndex);
 
-    if (panel) {
-        panel.classList.remove('anim-close','anim-open');
-        void panel.offsetWidth;
+    if (miniFrame) {
+        miniFrame.classList.remove('anim-close','anim-open');
+        void miniFrame.offsetWidth; // force reflow
+        
         if (d.closed) {
-            panel.classList.add('anim-close','shut');
+            miniFrame.classList.add('anim-close','shut');
             play(snd.dClose);
         } else {
-            panel.classList.remove('shut');
-            panel.classList.add('anim-open');
+            miniFrame.classList.remove('shut');
+            miniFrame.classList.add('anim-open');
             play(snd.dOpen);
         }
     }
-    if (btn) btn.className = 'door-toggle ' + (d.closed ? 'closed' : 'open') + ' busy';
+    
     if (tBtn) tBtn.classList.toggle('door-closed', d.closed);
 });
 
@@ -269,8 +258,15 @@ socket.on('doorAnimDone', d => {
     S = d.state;
     if (d.state && d.state.doors) {
         d.state.doors.forEach((dr, i) => {
-            const btn = document.getElementById('dBtn' + i);
-            if (btn) btn.className = 'door-toggle ' + (dr.closed ? 'closed' : 'open');
+            const mf = document.getElementById('miniDoor' + i);
+            if (mf) {
+                if (dr.closed) {
+                    mf.classList.add('shut');
+                    mf.classList.remove('anim-open');
+                } else {
+                    mf.classList.remove('shut', 'anim-close');
+                }
+            }
         });
     }
 });
@@ -304,8 +300,6 @@ socket.on('cameraRepairedNotify', d => {
         if (ns) ns.style.display = 'none';
     }
 });
-
-socket.on('cameraRepairing', d => { S = d.state; });
 
 socket.on('powerOut', st => {
     S = st;
@@ -401,6 +395,8 @@ socket.on('gameWon', st => {
     };
 });
 
+// ===== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА =====
+
 function updateUI() {
     if (!S) return;
     const ht = document.getElementById('hTime');
@@ -419,12 +415,14 @@ function updateUI() {
     const hu = document.getElementById('hUsage');
     if (hu) hu.textContent = 'Usage: ' + '█'.repeat(bars);
 
+    // Обновление состояния новых мини-дверей
     if (S.doors) {
         S.doors.forEach((d, i) => {
-            const panel = document.getElementById('dPanel' + i);
-            const btn = document.getElementById('dBtn' + i);
-            if (panel) panel.classList.toggle('shut', d.closed);
-            if (btn && !d.animating) btn.className = 'door-toggle ' + (d.closed ? 'closed' : 'open');
+            const mf = document.getElementById('miniDoor' + i);
+            if (mf && !d.animating) {
+                if (d.closed) mf.classList.add('shut');
+                else mf.classList.remove('shut');
+            }
         });
     }
 

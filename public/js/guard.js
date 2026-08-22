@@ -67,12 +67,11 @@ const canvas = document.getElementById('camCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 const frameImg = new Image();
 
-// ===== ФУНКЦИЯ FULLSCREEN =====
 window.toggleFullScreen = function() {
     const elem = document.documentElement;
     if (!document.fullscreenElement) {
         elem.requestFullscreen().catch(err => {
-            console.warn(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            console.warn(`Error attempting to enable full-screen mode: ${err.message}`);
         });
         document.getElementById('fsBtn').textContent = '[ ✖ EXIT FS ]';
     } else {
@@ -324,7 +323,6 @@ socket.on('powerOut', st => {
     if (snd.phone) stop(snd.phone);
     play(snd.pwrOut);
 
-    // ЗАПУСК ВИДЕО ФРЕДДИ
     const fVid = document.getElementById('freddyVid');
     if (fVid) {
         fVid.currentTime = 0;
@@ -370,7 +368,6 @@ socket.on('rebootApproved', st => {
     const tb = document.getElementById('tReboot');
     if (tb) tb.style.display = 'none';
     
-    // ОСТАНОВКА ВИДЕО ФРЕДДИ
     const fVid = document.getElementById('freddyVid');
     if (fVid) {
         fVid.pause();
@@ -401,17 +398,15 @@ socket.on('gameLost', d => {
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
 
-    // ОСТАНОВКА ВИДЕО ФРЕДДИ (ОНО ЗАМЕНЯЕТСЯ СКРИМЕРОМ)
     const fVid = document.getElementById('freddyVid');
-    if (fVid) {
-        fVid.pause();
-    }
+    if (fVid) fVid.pause();
 
     play(snd.scare);
     const ss = document.getElementById('scareScr');
     if (ss) ss.classList.add('on');
 });
 
+// ===== ПОБЕДА (6:00 AM) — ПРЕРАВАНИЕ ВСЕГО И ЗАПУСК 5 -> 6 AM =====
 socket.on('gameWon', st => {
     S = st;
     stop(snd.amb);
@@ -419,13 +414,25 @@ socket.on('gameWon', st => {
     stop(snd.nightStart);
     if (snd.phone) stop(snd.phone);
 
+    // Стираем видео Фредди и экран отключения
     const fVid = document.getElementById('freddyVid');
     if (fVid) fVid.pause();
-    
-    play(snd.win);
+    const po = document.getElementById('pwrOut');
+    if (po) po.classList.remove('on');
+
+    // Показываем экран победы
     const ws = document.getElementById('winScr');
     if (ws) ws.classList.add('on');
-    spawnConf();
+
+    const slide = document.getElementById('digitSlide');
+    if (slide) slide.classList.remove('shift'); // Убеждаемся что стоим на 5 AM
+
+    // Запускаем переключение на 6 AM + Звук победы
+    setTimeout(() => {
+        if (slide) slide.classList.add('shift'); // Анимация смещения 5 -> 6
+        play(snd.win); // Звон часов и YAY!
+        spawnConf();
+    }, 1000);
 
     snd.win.onended = () => { play(snd.winMelody); };
 });

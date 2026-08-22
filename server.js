@@ -16,12 +16,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const games = {};
 
-// ===== НАСТРОЙКИ ВРЕМЕНИ И ЭНЕРГИИ =====
-const HOUR_DURATION_MS = 4 * 60 * 1000; // 1 час = 4 минуты (240 000 мс)
+const HOUR_DURATION_MS = 4 * 60 * 1000; // 1 час = 4 минуты
 const MAX_POWER = 100;
-const TICK_INTERVAL = 500; // Проверка каждые 0.5 сек
+const TICK_INTERVAL = 500;
 
-// Баланс расхода (% в секунду)
 const BASE_POWER_DRAIN = 0.025;   
 const CAMERA_POWER_DRAIN = 0.020; 
 const DOOR_POWER_DRAIN = 0.057;   
@@ -42,9 +40,9 @@ function createGame(settings) {
         },
         state: 'lobby',
         power: MAX_POWER,
-        powerAtOut: MAX_POWER, // Запоминаем энергию перед отключением
+        powerAtOut: MAX_POWER,
         hour: 0,
-        activePlayTimeMs: 0,   // Накопленное активное время (без учета выключенного света)
+        activePlayTimeMs: 0,
         lastTickTime: null,
         camerasUp: false,
         currentCamera: 0,
@@ -112,7 +110,7 @@ function getPublicState(game) {
     };
 }
 
-// ===== ИГРОВОЙ ЦИКЛ С ЗАМОРОЗКОЙ ВРЕМЕНИ =====
+// ===== ИГРОВОЙ ЦИКЛ (ВРЕМЯ ИДЕТ ДАЖЕ В ТЕМНОТЕ!) =====
 setInterval(() => {
     const now = Date.now();
 
@@ -123,22 +121,22 @@ setInterval(() => {
         const delta = now - last;
         game.lastTickTime = now;
 
-        // Если ЭЛЕКТРИЧЕСТВО ВКЛЮЧЕНО -> Время идет, энергия тратится
-        if (!game.systemOff) {
-            game.activePlayTimeMs += delta;
+        // Время идет всегда!
+        game.activePlayTimeMs += delta;
 
-            // Обновление часа
-            const newHour = getGameHour(game);
-            if (newHour !== game.hour) {
-                game.hour = newHour;
-                if (game.hour >= 6) {
-                    game.state = 'won';
-                    io.to('game_' + game.id).emit('gameWon', getPublicState(game));
-                    return;
-                }
+        // ПРОВЕРКА ПОБЕДЫ 6 AM (Спасает даже во время музыки Фредди!)
+        const newHour = getGameHour(game);
+        if (newHour !== game.hour) {
+            game.hour = newHour;
+            if (game.hour >= 6) {
+                game.state = 'won';
+                io.to('game_' + game.id).emit('gameWon', getPublicState(game));
+                return;
             }
+        }
 
-            // Расход энергии
+        // Если свет включен — тратим энергию
+        if (!game.systemOff) {
             if (game.power > 0) {
                 game.power -= getPowerDrain(game) * (delta / 1000);
                 if (game.power <= 0) {
@@ -152,7 +150,7 @@ setInterval(() => {
                 }
             }
         } else {
-            // Если ЭЛЕКТРИЧЕСТВО ВЫКЛЮЧЕНО -> ВРЕМЯ ЗАМОРОЖЕНО (activePlayTimeMs не растет!)
+            // Если свет выключен — проверяем таймаут скримера
             if (game.powerOutTime && !game.rebootInProgress && !game.rebootApprovalNeeded) {
                 if (now - game.powerOutTime > POWER_OUT_DEATH_TIME) {
                     game.state = 'lost';
@@ -341,12 +339,10 @@ io.on('connection', (socket) => {
         }, 20000);
     });
 
-    // ОКТЛЮЧЕНИЕ СВЕТА АНИМАТРОНИКОМ
     socket.on('killPower', ({ gameId }) => {
         const game = games[gameId];
         if (!game || game.state !== 'playing' || game.systemOff) return;
 
-        // Запоминаем текущий уровень энергии (например, 97%)
         game.powerAtOut = game.power; 
         game.power = 0;
         game.systemOff = true;
@@ -373,7 +369,6 @@ io.on('connection', (socket) => {
         }, REBOOT_TIME);
     });
 
-    // ОДОБРЕНИЕ ПЕРЕЗАГРУЗКИ
     socket.on('approveReboot', ({ gameId }) => {
         const game = games[gameId];
         if (!game || game.state !== 'playing') return;
@@ -383,11 +378,9 @@ io.on('connection', (socket) => {
         game.rebootApprovalNeeded = false;
         game.powerOutTime = null;
         
-        // Списываем 5% от уровня энергии, который был до отключения (например: было 97% -> стало 92%)
         const restoredPower = Math.max(1, game.powerAtOut - 5);
         game.power = Math.round(restoredPower * 10) / 10;
-
-        game.lastTickTime = Date.now(); // Сбрасываем таймер тика, чтобы не было скачка времени
+        game.lastTickTime = Date.now(); 
 
         io.to('game_' + gameId).emit('rebootApproved', getPublicState(game));
     });

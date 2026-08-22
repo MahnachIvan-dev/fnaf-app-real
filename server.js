@@ -16,13 +16,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const games = {};
 
-const NIGHT_DURATION_MS = 8 * 60 * 1000;
-const HOUR_DURATION_MS = NIGHT_DURATION_MS / 6;
+// ===== НАСТРОЙКИ ВРЕМЕНИ И ЭНЕРГИИ =====
+const HOUR_DURATION_MS = 4 * 60 * 1000; // 1 час = 4 минуты (240 000 мс)
+const NIGHT_DURATION_MS = HOUR_DURATION_MS * 6; // Вся ночь = 24 минуты
 const MAX_POWER = 100;
-const TICK_INTERVAL = 500;
-const BASE_POWER_DRAIN = 0.033;
-const CAMERA_POWER_DRAIN = 0.05;
-const DOOR_POWER_DRAIN = 0.055;
+const TICK_INTERVAL = 500; // Проверка каждые 0.5 сек
+
+// Баланс расхода (в % в секунду)
+const BASE_POWER_DRAIN = 0.025;   // База (пассивный режим)
+const CAMERA_POWER_DRAIN = 0.020; // При поднятом планшете
+const DOOR_POWER_DRAIN = 0.057;   // За КАЖДУЮ закрытую дверь (2 двери = ~0.139%/сек -> смерть на 3 AM)
+
 const REBOOT_TIME = 15000;
 const POWER_OUT_DEATH_TIME = 35000;
 const DOOR_CLOSE_MS = 300;
@@ -84,7 +88,7 @@ function getPowerDrain(game) {
     let drain = BASE_POWER_DRAIN;
     if (game.camerasUp) drain += CAMERA_POWER_DRAIN;
     game.doors.forEach(d => { if (d.closed) drain += DOOR_POWER_DRAIN; });
-    return drain;
+    return drain; // Суммарный процент расхода в секунду
 }
 
 function getPublicState(game) {
@@ -109,10 +113,12 @@ function getPublicState(game) {
     };
 }
 
+// ===== ИГРОВОЙ ЦИКЛ =====
 setInterval(() => {
     Object.values(games).forEach(game => {
         if (game.state !== 'playing') return;
 
+        // Обновление часа
         const newHour = getGameHour(game);
         if (newHour !== game.hour) {
             game.hour = newHour;
@@ -123,6 +129,7 @@ setInterval(() => {
             }
         }
 
+        // Списание энергии (TICK_INTERVAL / 1000 = 0.5 секунды)
         if (!game.systemOff && game.power > 0) {
             game.power -= getPowerDrain(game) * (TICK_INTERVAL / 1000);
             if (game.power <= 0) {
@@ -135,6 +142,7 @@ setInterval(() => {
             }
         }
 
+        // Проигрыш через 35 секунд после отключения питания, если не сделали перезагрузку
         if (game.systemOff && game.powerOutTime && !game.rebootInProgress && !game.rebootApprovalNeeded) {
             if (Date.now() - game.powerOutTime > POWER_OUT_DEATH_TIME) {
                 game.state = 'lost';
@@ -298,7 +306,6 @@ io.on('connection', (socket) => {
         io.to('game_' + gameId).emit('cameraBroken', { camIndex });
     });
 
-    // ПОЧИНКА
     socket.on('startRepairCamera', ({ gameId, camIndex }) => {
         const game = games[gameId];
         if (!game) return;

@@ -37,7 +37,7 @@ function play(a) {
     try { 
         a.currentTime = 0; 
         const p = a.play(); 
-        if (p && p.catch) p.catch(e => console.warn('Audio play error ignored:', e));
+        if (p && p.catch) p.catch(() => {});
     } catch(e) {} 
 }
 
@@ -88,10 +88,6 @@ if (btnApp) {
     btnApp.addEventListener('click', () => {
         socket.emit('approveReboot', { gameId });
         if ($('pReboot')) $('pReboot').style.display = 'none';
-        if ($('btnKillPwr')) {
-            $('btnKillPwr').disabled = false;
-            $('btnKillPwr').textContent = '⚡ KILL POWER';
-        }
     });
 }
 
@@ -131,6 +127,19 @@ function updateUI(st) {
         $('aSys').textContent = st.systemOff ? 'OFF ❌' : 'ON ✓';
         $('aSys').style.color = st.systemOff ? 'var(--red)' : 'var(--green)';
     }
+
+    // ===== АВТОМАТИЧЕСКАЯ РАЗБЛОКИРОВКА КНОПКИ ОТКЛЮЧЕНИЯ ЭЛЕКТРИЧЕСТВА =====
+    const killBtn = $('btnKillPwr');
+    if (killBtn) {
+        if (st.systemOff) {
+            killBtn.disabled = true;
+            killBtn.textContent = '⚡ POWER IS OFF';
+        } else {
+            killBtn.disabled = false;
+            killBtn.textContent = '⚡ KILL POWER';
+        }
+    }
+
     let ch = '';
     if (st.cameras) {
         st.cameras.forEach((cam, i) => {
@@ -141,10 +150,6 @@ function updateUI(st) {
         });
     }
     if ($('camActions')) $('camActions').innerHTML = ch;
-    if (st.systemOff && $('btnKillPwr')) {
-        $('btnKillPwr').disabled = true;
-        $('btnKillPwr').textContent = '⚡ POWER IS OFF';
-    }
 }
 
 // ===== СОБЫТИЯ И ЗВУКИ =====

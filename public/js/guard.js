@@ -9,21 +9,22 @@ let S = null; let mode = 1; let camsUp = false; let curCam = 0; let rebooting = 
 
 function au(src, loop, vol) {
     const a = new Audio(); a.loop = !!loop; a.volume = vol !== undefined ? vol : 0.4;
-    a.onerror = () => { console.warn('Audio failed:', src); }; a.src = src; return a;
+    a.src = src; return a;
 }
 
-// 📞 ПРЯМЫЕ ССЫЛКИ НА ЗВОНКИ
+// 📞 ТВОИ ЗВОНКИ ФОНГАЯ С РАСШИРЕНИЕМ .OGG
 const PHONE_CALL_URLS = {
-    1: 'https://files.catbox.moe/u8u187.mp3',
-    2: 'https://files.catbox.moe/u8u187.mp3',
-    3: 'https://files.catbox.moe/u8u187.mp3',
-    4: 'https://files.catbox.moe/u8u187.mp3',
-    5: 'https://files.catbox.moe/u8u187.mp3'
+    1: 'https://files.catbox.moe/9hb3et.ogg',
+    2: 'https://files.catbox.moe/8kk4je.ogg',
+    3: 'https://files.catbox.moe/8kk4je.ogg',
+    4: 'https://files.catbox.moe/8kk4je.ogg',
+    5: 'https://files.catbox.moe/8kk4je.ogg'
 };
 
+// 🔊 ТВОИ .OGG И .MP3 ФАЙЛЫ
 const snd = {
-    nightStart: au('https://files.catbox.moe/8y8z75.mp3', false, 0.6),
-    winMelody:  au('https://files.catbox.moe/ad5yrw.mp3', false, 0.6),
+    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6),
+    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
     amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
     camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
     camDown:  au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
@@ -148,20 +149,20 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
-// ГАРАНТИРОВАННЫЙ ЗАПУСК СТАРА И ЗВОНКА
+// ГАРАНТИРОВАННЫЙ СТАРТ С ВНИМАНИЕМ К НОЧИ
 socket.on('gameStarted', st => {
-    S = st; mode = st.mode; updateUI(); 
+    S = st; mode = st.mode; updateUI();
     
-    // 1. Мелодия старта
+    // 1. Старт заставки
     play(snd.nightStart);
     
-    // 2. Сразу же включает фоновый гул офиса
+    // 2. Фоновый гул сразу
     play(snd.amb);
 
-    // 3. Через 2.5 секунды звонит Телефонный парень
+    // 3. Звонок Телефонного парня через 2.5 секунды
     setTimeout(() => {
         if (S && S.state === 'playing' && !S.systemOff) {
-            playPhone(st.night);
+            playPhone(st.night || 1);
         }
     }, 2500);
 });
@@ -335,10 +336,14 @@ function animReboot() {
 }
 function doFlash() { const f = document.getElementById('flash'); if (!f) return; f.classList.add('pop'); setTimeout(() => f.classList.remove('pop'), 120); }
 
+// ВОСПРОИЗВЕДЕНИЕ ЗВОНКА ФОНГАЯ
 function playPhone(night) {
-    const callUrl = PHONE_CALL_URLS[night];
+    const nightNum = night || (S && S.night) || 1;
+    const callUrl = PHONE_CALL_URLS[nightNum];
     if (!callUrl) return;
-    const muteBtn = document.getElementById('muteCallBtn'); if (muteBtn) muteBtn.style.display = 'block';
+
+    const muteBtn = document.getElementById('muteCallBtn'); 
+    if (muteBtn) muteBtn.style.display = 'block';
     
     if (snd.phone) stop(snd.phone);
     snd.phone = au(callUrl, false, 0.7);

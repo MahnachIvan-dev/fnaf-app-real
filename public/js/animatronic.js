@@ -3,31 +3,23 @@ const socket = io();
 const params = new URLSearchParams(location.search);
 const gameId = params.get('game');
 
-if (!gameId) { 
-    document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;font-family:monospace;">No game ID</div>'; 
-    return; 
-}
+if (!gameId) { document.body.innerHTML = '<div style="color:red;padding:40px;font-family:monospace;">No game ID</div>'; return; }
 
-let S = null; 
-let connected = false; 
-const $ = id => document.getElementById(id);
+let S = null; let connected = false; const $ = id => document.getElementById(id);
 
 function au(src, loop, vol) {
-    const a = new Audio(); 
-    a.loop = !!loop; 
-    a.volume = vol !== undefined ? vol : 0.4;
-    a.onerror = () => { console.warn('Audio failed:', src); }; 
-    a.src = src; 
-    return a;
+    const a = new Audio(); a.loop = !!loop; a.volume = vol !== undefined ? vol : 0.4;
+    a.onerror = () => { console.warn('Audio failed:', src); }; a.src = src; return a;
 }
 
+// 🔊 ВСЕ ЗВУКИ АНИМАТРОНИКА С РАБОЧИМИ ССЫЛКАМИ
 const snd = {
     nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.5),
     winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.5),
     pwrOut:     au('https://files.catbox.moe/hvxd67.mp3', false, 0.6),
     pwrOn:      au('https://files.catbox.moe/zuy3mk.mp3', false, 0.6),
     scare:      au('https://files.catbox.moe/bfucts.mp3', false, 0.9),
-    win:        au('https://files.catbox.moe/13m0my.mp3', false, 0.7)
+    win:        au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7) // РАБОЧАЯ ЗАМЕНА
 };
 
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
@@ -40,10 +32,7 @@ if (btnConn) {
         const name = ($('animName') ? $('animName').value : '') || 'Freddy';
         if ($('connectMsg')) $('connectMsg').textContent = 'Connecting...';
         socket.emit('joinAsAnimatronic', { gameId, name }, res => {
-            if (!res || !res.success) { 
-                if ($('connectMsg')) $('connectMsg').textContent = 'Error: ' + (res ? res.error : ''); 
-                return; 
-            }
+            if (!res || !res.success) { if ($('connectMsg')) $('connectMsg').textContent = 'Error: ' + (res ? res.error : ''); return; }
             connected = true;
             if ($('pConnect')) $('pConnect').style.display = 'none';
             if ($('pStatus')) $('pStatus').style.display = 'block';
@@ -56,20 +45,16 @@ if (btnConn) {
 // ОТКЛЮЧЕНИЕ ЭЛЕКТРИЧЕСТВА
 const btnKP = $('btnKillPwr');
 if (btnKP) {
-    btnKP.addEventListener('click', () => { 
-        socket.emit('killPower', { gameId }); 
-    });
+    btnKP.addEventListener('click', () => { socket.emit('killPower', { gameId }); });
 }
 
 // СКРИМЕР
 const btnSc = $('btnScare');
 if (btnSc) {
-    btnSc.addEventListener('click', () => { 
-        if (confirm('Trigger jumpscare?')) socket.emit('jumpscare', { gameId }); 
-    });
+    btnSc.addEventListener('click', () => { if (confirm('Trigger jumpscare?')) socket.emit('jumpscare', { gameId }); });
 }
 
-// ОДОБРЕНИЕ ПЕРЕЗАГРУЗКИ
+// ОДОБРЕНИЕ/ОТКЛОНЕНИЕ ПЕРЕЗАГРУЗКИ
 const btnApp = $('btnApprove');
 if (btnApp) {
     btnApp.addEventListener('click', () => {
@@ -78,7 +63,6 @@ if (btnApp) {
     });
 }
 
-// ОТКЛОНЕНИЕ ПЕРЕЗАГРУЗКИ
 const btnDn = $('btnDeny');
 if (btnDn) {
     btnDn.addEventListener('click', () => {
@@ -193,7 +177,6 @@ socket.on('rebootWaitingApproval', st => {
     const pReboot = $('pReboot');
     if (pReboot) {
         pReboot.style.display = 'block';
-        // Автоматически и плавно листаем страницу вниз к кнопкам
         setTimeout(() => {
             pReboot.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }, 100);

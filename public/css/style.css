@@ -154,16 +154,71 @@ select, input[type="text"] { background: var(--bg); border: 1px solid var(--gree
 .broken-full.on { display: flex; }
 .broken-full .noise-bg { position: absolute; inset: 0; opacity: .5; background: repeating-conic-gradient(#888 0% 25%, transparent 0% 50%) 50%/4px 4px; animation: staticMove .05s steps(3) infinite; }
 
-.anim-page { display: flex; flex-direction: column; align-items: center; padding: 15px; height: auto !important; min-height: 100vh; padding-bottom: 80px; overflow-y: auto; }
-.anim-panel { background: var(--panel); border: 2px solid var(--red); padding: 18px; width: 100%; max-width: 500px; margin: 8px 0; }
-.anim-panel h2 { color: var(--red); font-family: 'Press Start 2P', cursive; font-size: clamp(0.6rem, 2vw, 0.9rem); margin-bottom: 12px; text-align: center; }
-.anim-btn { width: 100%; background: transparent; border: 2px solid var(--red); color: var(--red); font-family: 'VT323', monospace; font-size: 1.2rem; padding: 12px; cursor: pointer; margin: 6px 0; transition: all .2s; }
-.anim-btn:hover { background: var(--red); color: #fff; }
+.anim-page {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow-y: scroll !important; /* Включаем принудительный скролл */
+    -webkit-overflow-scrolling: touch !important; /* Плавный скролл на iPhone/Android */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px 15px 140px 15px !important; /* Запас 140px снизу для удобства */
+    box-sizing: border-box;
+}
+
+.anim-panel {
+    background: var(--panel);
+    border: 2px solid var(--red);
+    padding: 18px;
+    width: 100%;
+    max-width: 500px;
+    margin: 8px 0;
+    flex-shrink: 0 !important; /* Запрещаем сжатие панелей при скролле */
+}
+
+.anim-panel h2 {
+    color: var(--red);
+    font-family: 'Press Start 2P', cursive;
+    font-size: clamp(0.6rem, 2vw, 0.9rem);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.anim-btn {
+    width: 100%;
+    background: transparent;
+    border: 2px solid var(--red);
+    color: var(--red);
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    padding: 14px;
+    cursor: pointer;
+    margin: 6px 0;
+    transition: all .2s;
+    touch-action: manipulation;
+}
+
+.anim-btn:hover, .anim-btn:active {
+    background: var(--red);
+    color: #fff;
+}
+
 .anim-btn.blue { border-color: var(--blue); color: var(--blue); }
-.anim-btn.blue:hover { background: var(--blue); color: #fff; }
+.anim-btn.blue:hover, .anim-btn.blue:active { background: var(--blue); color: #fff; }
 .anim-btn.green { border-color: var(--green); color: var(--green); }
-.anim-btn.green:hover { background: var(--green); color: #000; }
+.anim-btn.green:hover, .anim-btn.green:active { background: var(--green); color: #000; }
 .anim-btn:disabled { opacity: .3; cursor: not-allowed; pointer-events: none; }
-.anim-info { color: var(--white); font-size: 1.05rem; padding: 5px 0; border-bottom: 1px solid var(--border); }
+
+.anim-info {
+    color: var(--white);
+    font-size: 1.05rem;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+}
 .end-overlay { position: fixed; inset: 0; background: #000; z-index: 9998; display: none; flex-direction: column; align-items: center; justify-content: center; }
 .end-overlay.on { display: flex; }

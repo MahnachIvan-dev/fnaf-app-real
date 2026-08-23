@@ -37,7 +37,7 @@ const snd = {
     winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
     amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
     camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
-    camDown:  au('https://files.catbox.moe/hljkyi.mp3', false, 0.5),
+    camDown:  au('https://files.catbox.moe/4a9er6.mp3', false, 0.5),
     camSw:    au('https://files.catbox.moe/4a9er6.mp3', false, 0.4),
     dClose:   au('https://files.catbox.moe/xrln60.mp3', false, 0.6),
     dOpen:    au('https://files.catbox.moe/i0tyqu.mp3', false, 0.5),

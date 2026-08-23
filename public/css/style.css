@@ -26,6 +26,7 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Эффект старого монитора (полосы) */
 body::after {
     content: '';
     position: fixed;
@@ -37,7 +38,7 @@ body::after {
         transparent 1px, transparent 3px);
 }
 
-/* ========== COMMON ========== */
+/* ========== ОБЩИЕ СТИЛИ ========== */
 
 .page-center {
     display: flex;
@@ -166,7 +167,7 @@ select, input[type="text"] {
     margin: 10px 0;
 }
 
-/* ========== GUARD ========== */
+/* ========== GUARD HUD ========== */
 
 .guard-root {
     position: relative;
@@ -176,8 +177,7 @@ select, input[type="text"] {
     background: #050505;
 }
 
-/* HUD */
-.hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+.hud { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 
 .hud-top {
@@ -188,6 +188,7 @@ select, input[type="text"] {
     display: flex;
     justify-content: space-between;
     padding: 0 15px;
+    z-index: 40;
 }
 
 .hud-time {
@@ -197,7 +198,11 @@ select, input[type="text"] {
     text-shadow: 0 0 10px rgba(255,255,255,.5);
 }
 
-.hud-power { text-align: right; }
+.hud-power { 
+    text-align: right; 
+    min-width: 110px; 
+    padding-right: 4px; 
+}
 .pwr-label { font-size: 1rem; color: var(--white); }
 .pwr-val {
     font-size: clamp(1rem, 4vw, 2rem);
@@ -210,42 +215,89 @@ select, input[type="text"] {
 
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-/* Office (mode 2) */
-.office {
+/* КНОПКА FULLSCREEN (СПРАВА ВНИЗУ ОТ ЭНЕРГИИ) */
+.fullscreen-btn {
     position: absolute;
-    inset: 0;
-    z-index: 1;
-    background: linear-gradient(180deg, #0d0d0d, #1a1510 50%, #0d0d0d);
-}
-.office-desk {
-    position: absolute;
-    bottom: 0;
-    left: 8%;
-    width: 84%;
-    height: 33%;
-    background: linear-gradient(180deg, #2a2218, #1a1510);
-    border-top: 3px solid #3a3020;
-}
-.office-monitor-btn {
-    position: absolute;
-    bottom: 28%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: clamp(120px, 25vw, 220px);
-    height: clamp(80px, 18vw, 150px);
-    background: #111;
-    border: 3px solid #444;
-    border-radius: 4px;
+    top: 78px;
+    right: 12px;
+    z-index: 30;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    padding: 6px 10px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3;
     touch-action: manipulation;
 }
-.office-monitor-btn span { color: #555; font-size: clamp(0.6rem, 1.5vw, 0.9rem); text-align: center; line-height: 1.4; }
+.fullscreen-btn:hover, .fullscreen-btn:active {
+    background: var(--green);
+    color: #000;
+}
 
-/* Camera container */
+/* КНОПКА СБРОСА ЗВОНКА (СЛЕВА НИЖЕ ДВЕРЕЙ) */
+.mute-call-btn {
+    position: absolute;
+    top: 140px;
+    left: 12px;
+    z-index: 30;
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    padding: 5px 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+}
+.mute-call-btn:hover { background: var(--red); color: #fff; }
+
+/* ========== МИНИ-РАМКИ ДВЕРЕЙ ========== */
+.door-status-hud {
+    position: absolute;
+    top: 60px;
+    left: 15px;
+    display: flex;
+    gap: 10px;
+    z-index: 25;
+    pointer-events: none;
+}
+.mini-door-frame {
+    width: 45px;
+    height: 70px;
+    border: 3px solid #333;
+    background: #0a0a0a;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 0 10px #000, 0 0 5px #000;
+}
+.mini-door-label {
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 4px;
+    z-index: 2;
+    text-shadow: 1px 1px 0 #000;
+}
+.mini-door-metal {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(0deg, #444, #444 4px, #333 4px, #333 8px);
+    border-bottom: 4px solid var(--yellow);
+    z-index: 5;
+    box-shadow: 0 5px 5px rgba(0,0,0,0.5);
+}
+.mini-door-frame.anim-close .mini-door-metal { transition: top 0.3s ease-in; top: 0; }
+.mini-door-frame.shut .mini-door-metal { top: 0; }
+.mini-door-frame.anim-open .mini-door-metal { transition: top 2s ease-out; top: -100%; }
+
+
+/* ========== КАМЕРА НА ВЕСЬ ЭКРАН (БЕЗ РАМОК) ========== */
 .cam-container {
     position: absolute;
     inset: 0;
@@ -258,21 +310,30 @@ select, input[type="text"] {
 .cam-container.mode2-up { transform: translateY(0); }
 
 .cam-view {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+    background: #000;
+    overflow: hidden;
 }
 
-.cam-view canvas {
-    max-width: 100%;
-    max-height: 100%;
+#camCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
     display: block;
+    background: #000;
 }
 
 .no-signal {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
     color: var(--red);
     font-family: 'Press Start 2P', cursive;
     font-size: clamp(0.8rem, 3vw, 1.5rem);
@@ -282,35 +343,10 @@ select, input[type="text"] {
     line-height: 2;
 }
 
-.cam-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 5;
-}
-.cam-rec {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 1rem;
-    color: #fff;
-}
-.cam-rec .dot {
-    width: 10px; height: 10px;
-    background: red; border-radius: 50%;
-    animation: blink 1s infinite;
-}
-.cam-label-text {
-    position: absolute;
-    bottom: 70px;
-    left: 12px;
-    font-size: clamp(1rem, 3vw, 1.6rem);
-    color: #fff;
-    text-shadow: 2px 2px 0 #000;
-}
+.cam-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.cam-rec { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 6px; font-size: 1rem; color: #fff; }
+.cam-rec .dot { width: 10px; height: 10px; background: red; border-radius: 50%; animation: blink 1s infinite; }
+.cam-label-text { position: absolute; bottom: 70px; left: 12px; font-size: clamp(1rem, 3vw, 1.6rem); color: #fff; text-shadow: 2px 2px 0 #000; }
 
 .static-layer {
     position: absolute;
@@ -329,18 +365,19 @@ select, input[type="text"] {
     100% { transform: translate(0,0); }
 }
 
-/* Camera buttons */
+/* Кнопки камер */
 .cam-btns {
     position: absolute;
-    bottom: 8px;
+    bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     gap: 4px;
-    z-index: 10;
+    z-index: 20;
     flex-wrap: wrap;
     justify-content: center;
     padding: 0 5px;
+    width: 100%;
 }
 .cam-btn-item {
     background: rgba(40,40,40,.85);
@@ -358,67 +395,8 @@ select, input[type="text"] {
 .cam-btn-item.broken { background: rgba(255,0,0,.15); border-color: var(--red); color: var(--red); }
 .cam-btn-item.off { opacity: .3; pointer-events: none; }
 
-/* Door overlays */
-.door-panel {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    background: #1a1a1a;
-    z-index: 15;
-    width: 0;
-}
-.door-panel.left { left: 0; }
-.door-panel.right { right: 0; }
-.door-panel.center { left: 0; }
-.door-panel .stripe {
-    position: absolute;
-    top: 0;
-    width: 5px;
-    height: 100%;
-    background: repeating-linear-gradient(0deg, #333 0 8px, #222 8px 16px);
-}
-.door-panel.left .stripe { right: 0; }
-.door-panel.right .stripe { left: 0; }
-.door-panel.center .stripe { right: 0; }
 
-.door-panel.shut {
-    width: 33.3%;
-}
-
-.door-panel.anim-close { transition: width .3s ease; }
-.door-panel.anim-open { transition: width 2s ease; }
-
-/* Door buttons */
-.door-btns-wrap {
-    position: absolute;
-    z-index: 22;
-}
-.door-btns-wrap.pos-left { left: 8px; top: 50%; transform: translateY(-50%); }
-.door-btns-wrap.pos-right { right: 8px; top: 50%; transform: translateY(-50%); }
-.door-btns-wrap.pos-center { left: 50%; bottom: 70px; transform: translateX(-50%); }
-
-.door-toggle {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: rgba(25,25,25,.92);
-    border: 2px solid #444;
-    padding: 10px 14px;
-    cursor: pointer;
-    touch-action: manipulation;
-    transition: all .15s;
-    margin: 4px;
-}
-.door-toggle .d-icon { font-size: 1.8rem; }
-.door-toggle .d-name { font-size: 0.85rem; color: #888; }
-.door-toggle .d-key { font-size: 0.75rem; color: #555; margin-top: 2px; }
-.door-toggle.open { border-color: var(--green); }
-.door-toggle.open .d-icon { color: var(--green); }
-.door-toggle.closed { border-color: var(--red); background: rgba(255,0,0,.12); }
-.door-toggle.closed .d-icon { color: var(--red); }
-.door-toggle.busy { pointer-events: none; opacity: .5; }
-
-/* Touch controls (always visible on touch devices) */
+/* ========== СЕНСОРНЫЕ КНОПКИ (TOUCH BAR) ========== */
 .touch-bar {
     position: absolute;
     bottom: 0;
@@ -449,14 +427,15 @@ select, input[type="text"] {
 .touch-btn.on { background: rgba(0,255,65,.25); }
 .touch-btn.door-closed { border-color: var(--red); color: var(--red); background: rgba(255,0,0,.15); }
 
-@media (hover: none) and (pointer: coarse) {
+@media (hover: none) and (pointer: coarse), (max-width: 768px) {
     .touch-bar { display: flex !important; }
-}
-@media (max-width: 600px) {
-    .touch-bar { display: flex !important; }
+    .cam-btns { bottom: 78px; } /* чтобы не перекрывало тач-бар */
+    .touch-bar { padding: 10px 5px; gap: 8px; }
+    .touch-btn { padding: 15px 10px; font-size: 1.2rem; border-width: 3px; }
 }
 
-/* Power out */
+
+/* ========== ЭКРАНЫ ПИТАНИЯ / СКРИМЕРОВ / ПОБЕДЫ ========== */
 .pwr-out-screen {
     position: absolute;
     inset: 0;
@@ -476,93 +455,49 @@ select, input[type="text"] {
     animation: flicker 2s infinite;
     text-align: center;
 }
-@keyframes flicker {
-    0%{opacity:0} 5%{opacity:1} 10%{opacity:0} 15%{opacity:.8} 20%{opacity:0}
-    80%{opacity:0} 85%{opacity:.6} 90%{opacity:0} 100%{opacity:0}
+
+.freddy-vid {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+    opacity: 0.6;
+    pointer-events: none;
 }
 
-.reboot-hint { margin-top: 25px; color: var(--yellow); font-size: 1.1rem; animation: blink 1s infinite; text-align: center; }
-
-.progress-bar {
-    margin-top: 15px;
-    width: clamp(200px, 60vw, 350px);
-    height: 18px;
-    border: 1px solid var(--green);
-}
+.progress-bar { width: clamp(200px, 60vw, 350px); height: 18px; border: 1px solid var(--green); }
 .progress-bar .fill { height: 100%; background: var(--green); width: 0; transition: width .1s linear; }
 
-#rebootMsg { color: var(--yellow); font-size: 1.1rem; margin-top: 12px; text-align: center; }
-
-/* Jumpscare */
-.scare-screen {
-    position: fixed;
-    inset: 0;
-    background: #000;
-    z-index: 9998;
-    display: none;
-    align-items: center;
-    justify-content: center;
-}
-.scare-screen.on {
-    display: flex;
-    animation: shake .15s infinite;
-}
+.scare-screen { position: fixed; inset: 0; background: #000; z-index: 9998; display: none; align-items: center; justify-content: center; }
+.scare-screen.on { display: flex; animation: shake .15s infinite; }
+.scare-screen .scare-text { font-family: 'Press Start 2P', cursive; font-size: clamp(1.5rem, 6vw, 3rem); color: var(--red); text-shadow: 0 0 30px red; }
 @keyframes shake {
     0%{transform:translate(0,0)} 25%{transform:translate(-4px,4px)}
-    50%{transform:translate(4px,-4px)} 75%{transform:translate(-4px,-4px)}
-    100%{transform:translate(4px,4px)}
-}
-.scare-screen .scare-text {
-    font-family: 'Press Start 2P', cursive;
-    font-size: clamp(1.5rem, 6vw, 3rem);
-    color: var(--red);
-    text-shadow: 0 0 30px red;
+    50%{transform:translate(4px,-4px)} 75%{transform:translate(-4px,-4px)} 100%{transform:translate(4px,4px)}
 }
 
-/* Win */
-.win-screen {
-    position: fixed;
-    inset: 0;
-    background: #000;
-    z-index: 9998;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-}
+.win-screen { position: fixed; inset: 0; background: #000; z-index: 9998; display: none; align-items: center; justify-content: center; flex-direction: column; }
 .win-screen.on { display: flex; }
-.win-big {
-    font-family: 'Press Start 2P', cursive;
-    font-size: clamp(2rem, 10vw, 5rem);
-    color: #fff;
-    text-shadow: 0 0 20px rgba(255,255,255,.5);
-    animation: pulse 2s infinite;
-}
+.win-big { font-family: 'Press Start 2P', cursive; font-size: clamp(2rem, 10vw, 5rem); color: #fff; text-shadow: 0 0 20px rgba(255,255,255,.5); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 .win-sub { font-size: 1.3rem; color: var(--green); margin-top: 15px; }
 
-.confetti-piece {
-    position: absolute;
-    animation: confDrop linear forwards;
-}
-@keyframes confDrop {
-    0% { transform: translateY(-100vh) rotate(0); opacity: 1; }
-    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
+.fnaf-clock-box { display: flex; align-items: center; justify-content: center; font-family: 'Press Start 2P', cursive; font-size: clamp(3rem, 12vw, 6rem); color: #fff; text-shadow: 0 0 25px rgba(255, 255, 255, 0.9); }
+.digit-container { height: 1.15em; overflow: hidden; position: relative; width: 1em; text-align: center; }
+.digits-slide { position: absolute; top: 0; left: 0; width: 100%; transition: transform 1.3s cubic-bezier(0.85, 0, 0.15, 1); }
+.digits-slide.shift { transform: translateY(-50%); }
+.am-text { margin-left: 15px; }
 
-/* Flash */
-.flash {
-    position: fixed;
-    inset: 0;
-    background: #fff;
-    z-index: 9990;
-    pointer-events: none;
-    opacity: 0;
-}
+.confetti-piece { position: absolute; animation: confDrop linear forwards; }
+@keyframes confDrop { 0% { transform: translateY(-100vh) rotate(0); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+
+.flash { position: fixed; inset: 0; background: #fff; z-index: 9990; pointer-events: none; opacity: 0; }
 .flash.pop { opacity: .7; transition: none; }
 
-/* ========== CAMERA PAGE (phone) ========== */
 
+/* ========== СТРАНИЦЫ ТЕЛЕФОНА (КАМЕРА / АНИМАТРОНИК) ========== */
 .cam-page {
     display: flex;
     flex-direction: column;
@@ -572,31 +507,8 @@ select, input[type="text"] {
     padding: 15px;
     overflow-y: auto;
 }
-
-.cam-page video {
-    width: 100%;
-    max-width: 500px;
-    border: 2px solid var(--green);
-    border-radius: 4px;
-}
-
-.cam-page .status-text {
-    font-size: 1.3rem;
-    margin: 12px 0;
-    text-align: center;
-}
-
-.cam-page .repair-box {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 15px;
-    padding: 15px;
-    border: 2px solid var(--yellow);
-    width: 100%;
-    max-width: 400px;
-}
-.cam-page .repair-box.on { display: flex; }
+.cam-page video { width: 100%; max-width: 500px; border: 2px solid var(--green); border-radius: 4px; }
+.cam-page .status-text { font-size: 1.3rem; margin: 12px 0; text-align: center; }
 
 .broken-full {
     position: fixed;
@@ -617,332 +529,22 @@ select, input[type="text"] {
     animation: staticMove .05s steps(3) infinite;
 }
 
-/* ========== ANIMATRONIC PAGE ========== */
-
 .anim-page {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 15px;
+    height: auto !important;
     min-height: 100vh;
+    padding-bottom: 80px; /* Чтобы можно было доскроллить вниз */
     overflow-y: auto;
 }
-
-.anim-panel {
-    background: var(--panel);
-    border: 2px solid var(--red);
-    padding: 18px;
-    width: 100%;
-    max-width: 500px;
-    margin: 8px 0;
-}
-
-.anim-panel h2 {
-    color: var(--red);
-    font-family: 'Press Start 2P', cursive;
-    font-size: clamp(0.6rem, 2vw, 0.9rem);
-    margin-bottom: 12px;
-    text-align: center;
-}
-/* ===== АНИМАЦИЯ ЧАСОВ 5 AM -> 6 AM (КАК ВО FNAF 1) ===== */
-.fnaf-clock-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Press Start 2P', cursive;
-    font-size: clamp(3rem, 12vw, 6rem);
-    color: #fff;
-    text-shadow: 0 0 25px rgba(255, 255, 255, 0.9);
-}
-/* ===== КАРТИНКА КАМЕРЫ В РАМКЕ (НЕ НА ВЕСЬ ЭКРАН) ===== */
-
-.cam-container {
-    background: #050505;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.cam-view {
-    position: relative;
-    width: min(92vw, 1100px);
-    height: min(78vh, 620px);
-    background: #000;
-    border: 4px solid #2a2a2a;
-    border-radius: 10px;
-    box-shadow:
-        0 0 0 3px #111,
-        0 0 0 6px #333,
-        0 0 40px rgba(0, 255, 65, 0.08),
-        inset 0 0 40px rgba(0, 0, 0, 0.8);
-    overflow: hidden;
-}
-
-/* Само изображение камеры внутри рамки */
-#camCanvas {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover; /* заполняет рамку без полос */
-    display: block;
-    background: #000;
-}
-
-/* Лёгкий зелёный оттенок как у старых камер */
-.cam-view::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: rgba(0, 255, 65, 0.03);
-    z-index: 3;
-}
-
-/* Уголки рамки (декор) */
-.cam-view::before {
-    content: '';
-    position: absolute;
-    inset: 8px;
-    border: 1px solid rgba(0, 255, 65, 0.15);
-    pointer-events: none;
-    z-index: 4;
-}
-
-/* REC и название камеры остаются поверх картинки */
-.cam-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 6;
-}
-
-.cam-rec {
-    position: absolute;
-    top: 12px;
-    left: 14px;
-}
-
-.cam-label-text {
-    position: absolute;
-    bottom: 14px;
-    left: 14px;
-}
-
-/* Статика / помехи тоже только внутри рамки */
-.static-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    opacity: 0.12;
-    pointer-events: none;
-}
-
-/* NO SIGNAL по центру рамки */
-.no-signal {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 7;
-    background: rgba(0, 0, 0, 0.65);
-}
-
-/* Кнопки камер под рамкой */
-.cam-btns {
-    position: absolute;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 20;
-}
-
-/* На телефоне рамка чуть компактнее */
-@media (max-width: 768px) {
-    .cam-view {
-        width: 96vw;
-        height: 58vh;
-        border-width: 3px;
-    }
-
-    .cam-btns {
-        bottom: 70px; /* чтобы не наезжало на touch-bar */
-    }
-}
-.digit-container {
-    height: 1.15em;
-    overflow: hidden;
-    position: relative;
-    width: 1em;
-    text-align: center;
-}
-
-.digits-slide {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    transition: transform 1.3s cubic-bezier(0.85, 0, 0.15, 1);
-}
-
-.digits-slide.shift {
-    transform: translateY(-50%); /* Переключает 5 на 6 */
-}
-
-.am-text {
-    margin-left: 15px;
-}
-.anim-btn {
-    width: 100%;
-    background: transparent;
-    border: 2px solid var(--red);
-    color: var(--red);
-    font-family: 'VT323', monospace;
-    font-size: 1.2rem;
-    padding: 12px;
-    cursor: pointer;
-    margin: 6px 0;
-    transition: all .2s;
-    touch-action: manipulation;
-}
+.anim-panel { background: var(--panel); border: 2px solid var(--red); padding: 18px; width: 100%; max-width: 500px; margin: 8px 0; }
+.anim-panel h2 { color: var(--red); font-family: 'Press Start 2P', cursive; font-size: clamp(0.6rem, 2vw, 0.9rem); margin-bottom: 12px; text-align: center; }
+.anim-btn { width: 100%; background: transparent; border: 2px solid var(--red); color: var(--red); font-family: 'VT323', monospace; font-size: 1.2rem; padding: 12px; cursor: pointer; margin: 6px 0; transition: all .2s; touch-action: manipulation; }
 .anim-btn:hover, .anim-btn:active { background: var(--red); color: #fff; }
 .anim-btn:disabled { opacity: .3; cursor: not-allowed; pointer-events: none; }
 .anim-btn.green { border-color: var(--green); color: var(--green); }
-.anim-btn.green:hover, .anim-btn.green:active { background: var(--green); color: #000; }
-
-.anim-info {
-    color: var(--white);
-    font-size: 1.05rem;
-    padding: 5px 0;
-    border-bottom: 1px solid var(--border);
-}
-/* ===== ФИКС ПРОКРУТКИ АНИМАТРОНИКА ===== */
-.anim-page {
-    height: auto !important;
-    min-height: 100vh;
-    padding-bottom: 60px; /* Чтобы нижние кнопки не перекрывались телефоном */
-}
-
-/* ===== МИНИ-РАМКИ ДВЕРЕЙ У ОХРАННИКА (СЛЕВА ВВЕРХУ) ===== */
-.door-status-hud {
-    position: absolute;
-    top: 60px; /* Чуть ниже времени */
-    left: 15px;
-    display: flex;
-    gap: 10px;
-    z-index: 25;
-    pointer-events: none; /* Чтобы не мешали кликать */
-}
-
-.mini-door-frame {
-    width: 45px;
-    height: 70px;
-    border: 3px solid #333;
-    background: #0a0a0a;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-shadow: inset 0 0 10px #000, 0 0 5px #000;
-}
-/* ===== КАМЕРА НА ВЕСЬ ЭКРАН ===== */
-#camCanvas {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Заполняет экран без сплющивания, обрезая лишнее */
-    display: block;
-}
-
-/* ===== КНОПКА FULLSCREEN ===== */
-.fullscreen-btn {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    z-index: 25;
-    background: rgba(20, 20, 20, 0.85);
-    border: 1px solid var(--green);
-    color: var(--green);
-    font-family: 'VT323', monospace;
-    font-size: 1.2rem;
-    padding: 6px 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.fullscreen-btn:hover {
-    background: var(--green);
-    color: #000;
-}
-
-/* ===== ВИДЕО ФРЕДДИ ПРИ ВЫКЛЮЧЕНИИ СВЕТА ===== */
-.freddy-vid {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Видео на весь экран */
-    z-index: -1; /* Позади текста POWER OUT */
-    opacity: 0.6; /* Слегка затемненное */
-    pointer-events: none;
-}
-.mini-door-label {
-    font-size: 0.7rem;
-    color: #666;
-    margin-top: 4px;
-    z-index: 2;
-    text-shadow: 1px 1px 0 #000;
-}
-
-.mini-door-metal {
-    position: absolute;
-    top: -100%; /* Дверь открыта (спрятана сверху) */
-    left: 0;
-    width: 100%;
-    height: 100%;
-    /* Текстура железа */
-    background: repeating-linear-gradient(0deg, #444, #444 4px, #333 4px, #333 8px);
-    border-bottom: 4px solid var(--yellow); /* Желтая полоса снизу как во фнаф */
-    z-index: 5;
-    box-shadow: 0 5px 5px rgba(0,0,0,0.5);
-}
-
-/* Анимации опускания и поднятия дверей */
-.mini-door-frame.anim-close .mini-door-metal {
-    transition: top 0.3s ease-in; /* Быстрое закрытие */
-    top: 0;
-}
-
-.mini-door-frame.shut .mini-door-metal {
-    top: 0;
-}
-
-.mini-door-frame.anim-open .mini-door-metal {
-    transition: top 2s ease-out; /* Медленное открытие */
-    top: -100%;
-}
-
-/* Адаптивность для тач-панели (чтобы на телефонах было удобно нажимать) */
-@media (max-width: 768px) {
-    .touch-bar {
-        padding: 10px 5px;
-        gap: 8px;
-    }
-    .touch-btn {
-        padding: 15px 10px;
-        font-size: 1.2rem;
-        border-width: 3px;
-    }
-}
-/* ========== SHARED ENDGAME ========== */
-
-.end-overlay {
-    position: fixed;
-    inset: 0;
-    background: #000;
-    z-index: 9998;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
+.anim-info { color: var(--white); font-size: 1.05rem; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.end-overlay { position: fixed; inset: 0; background: #000; z-index: 9998; display: none; flex-direction: column; align-items: center; justify-content: center; }
 .end-overlay.on { display: flex; }

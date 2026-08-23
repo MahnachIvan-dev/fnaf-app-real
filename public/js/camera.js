@@ -48,7 +48,7 @@ const snd = {
     win:        au('https://files.catbox.moe/13m0my.mp3', false, 0.7),
 
     // ОТВЛЕКАЮЩИЙ ЗВУК (вставь сюда свою ссылку на mp3)
-    distraction: au('https://files.catbox.moe/xrln60.mp3', false, 1.0)
+    distraction: au('https://files.catbox.moe/e2ol1c.mp3', false, 1.0)
 };
 
 function play(a) {

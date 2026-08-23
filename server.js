@@ -13,15 +13,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const games = {};
 
-// ===== НАСТРОЙКИ ВРЕМЕНИ И ЭНЕРГИИ =====
-const HOUR_DURATION_MS = 2 * 60 * 1000; // 1 час = 2 минуты (120 000 мс)
+const HOUR_DURATION_MS = 2 * 60 * 1000; // 1 час = 2 минуты
 const MAX_POWER = 100;
 const TICK_INTERVAL = 500; 
 
-// Рассчитанный баланс энергии для ночи в 12 минут:
-const BASE_POWER_DRAIN = 0.050;   // Базовый гул
-const CAMERA_POWER_DRAIN = 0.040; // Камеры
-const DOOR_POWER_DRAIN = 0.114;   // 2 двери закрыты = ~0.278%/сек -> сгорает ровно в 3 AM (6 минут)
+const BASE_POWER_DRAIN = 0.050;   
+const CAMERA_POWER_DRAIN = 0.040; 
+const DOOR_POWER_DRAIN = 0.114;   
 
 const REBOOT_TIME = 15000;
 const POWER_OUT_DEATH_TIME = 35000;
@@ -67,18 +65,29 @@ function getTimeString(hour) { return hour === 0 ? '12 AM' : (hour >= 6 ? '6 AM'
 
 function getPublicState(game) {
     return {
-        id: game.id, state: game.state, power: Math.max(0, Math.round(game.power * 10) / 10),
-        hour: game.hour, hourString: getTimeString(game.hour), camerasUp: game.camerasUp,
-        currentCamera: game.currentCamera, doors: game.doors,
+        id: game.id,
+        state: game.state,
+        power: Math.max(0, Math.round(game.power * 10) / 10),
+        hour: game.hour,
+        hourString: getTimeString(game.hour),
+        camerasUp: game.camerasUp,
+        currentCamera: game.currentCamera,
+        doors: game.doors,
         cameras: game.cameras.map((c, i) => ({ id: i, connected: c.connected, broken: c.broken, repairing: c.repairing })),
-        animatronics: game.animatronics, mode: game.settings.mode, doorCount: game.settings.doorCount,
-        systemOff: game.systemOff, isDeadPower: game.isDeadPower, rebootInProgress: game.rebootInProgress,
-        rebootApprovalNeeded: game.rebootApprovalNeeded, overloadLevel: Math.round(game.overloadLevel), 
-        overloadTripped: game.overloadTripped, doorOverloadEnabled: game.settings.doorOverload
+        animatronics: game.animatronics,
+        mode: game.settings.mode,
+        doorCount: game.settings.doorCount,
+        night: game.settings.night, // <-- ВОТ ЗДЕСЬ ИСПРАВЛЕНО! (Теперь сервер передает ночь)
+        systemOff: game.systemOff,
+        isDeadPower: game.isDeadPower,
+        rebootInProgress: game.rebootInProgress,
+        rebootApprovalNeeded: game.rebootApprovalNeeded,
+        overloadLevel: Math.round(game.overloadLevel), 
+        overloadTripped: game.overloadTripped,
+        doorOverloadEnabled: game.settings.doorOverload
     };
 }
 
-// ===== ИГРОВОЙ ЦИКЛ С ЗАМОРОЗКОЙ ВРЕМЕНИ =====
 setInterval(() => {
     const now = Date.now();
     Object.values(games).forEach(game => {
@@ -87,11 +96,9 @@ setInterval(() => {
         const delta = now - (game.lastTickTime || now);
         game.lastTickTime = now;
 
-        // ВРЕМЯ ИДЕТ ТОЛЬКО КОГДА ЕСТЬ СВЕТ!
         if (!game.systemOff) {
             game.activePlayTimeMs += delta;
 
-            // Часы
             if (getGameHour(game) !== game.hour) {
                 game.hour = getGameHour(game);
                 if (game.hour >= 6) {
@@ -99,14 +106,12 @@ setInterval(() => {
                 }
             }
 
-            // Расход энергии
             if (game.power > 0) {
                 let drain = BASE_POWER_DRAIN; let closedDoors = 0;
                 if (game.camerasUp) drain += CAMERA_POWER_DRAIN;
                 game.doors.forEach(d => { if (d.closed) { drain += DOOR_POWER_DRAIN; closedDoors++; } });
                 game.power -= drain * (delta / 1000);
                 
-                // Энергия упала до 0%
                 if (game.power <= 0) {
                     game.power = 0; game.powerAtOut = 0; game.systemOff = true; game.isDeadPower = true;
                     game.camerasUp = false;
@@ -115,7 +120,6 @@ setInterval(() => {
                     io.to('game_' + game.id).emit('powerOut', getPublicState(game));
                 }
 
-                // Перегрев дверей
                 if (game.settings.doorOverload && !game.overloadTripped) {
                     if (closedDoors >= 1) {
                         game.overloadLevel += (delta / 15000) * 100;
@@ -128,7 +132,6 @@ setInterval(() => {
                 }
             }
         } else {
-            // КОГДА СВЕТ ВЫКЛЮЧЕН — ВРЕМЯ ЗАМОРОЖЕНО! Работает только таймер скримера
             if (game.powerOutTime && !game.rebootInProgress && !game.rebootApprovalNeeded) {
                 if (now - game.powerOutTime > POWER_OUT_DEATH_TIME) {
                     game.state = 'lost'; io.to('game_' + game.id).emit('gameLost', { ...getPublicState(game), reason: 'power_out' }); return;
@@ -237,13 +240,9 @@ io.on('connection', (socket) => {
     socket.on('killPower', ({ gameId }) => {
         const game = games[gameId];
         if (game && game.state === 'playing' && !game.systemOff) {
-            game.powerAtOut = game.power; 
-            game.systemOff = true; 
-            game.isDeadPower = false; 
-            game.camerasUp = false; 
-            game.doors.forEach(d => { d.closed = false; d.animating = false; });
-            game.powerOutTime = Date.now(); 
-            io.to('game_' + gameId).emit('powerOut', getPublicState(game));
+            game.powerAtOut = game.power; game.systemOff = true; game.isDeadPower = false; 
+            game.camerasUp = false; game.doors.forEach(d => { d.closed = false; d.animating = false; });
+            game.powerOutTime = Date.now(); io.to('game_' + gameId).emit('powerOut', getPublicState(game));
         }
     });
 
@@ -255,16 +254,11 @@ io.on('connection', (socket) => {
         setTimeout(() => { if (game.state === 'playing') { game.rebootApprovalNeeded = true; io.to('game_' + gameId).emit('rebootWaitingApproval', getPublicState(game)); } }, REBOOT_TIME);
     });
 
-    // ВОССТАНОВЛЕНИЕ: Штраф -5% и продолжение времени
     socket.on('approveReboot', ({ gameId }) => {
         const game = games[gameId];
         if (game && game.state === 'playing') {
-            game.systemOff = false; 
-            game.rebootInProgress = false; 
-            game.rebootApprovalNeeded = false; 
-            game.powerOutTime = null;
-            game.power = Math.max(1, game.powerAtOut - 5); // ШТРАФ -5%
-            game.lastTickTime = Date.now(); // Время размораживается!
+            game.systemOff = false; game.rebootInProgress = false; game.rebootApprovalNeeded = false; game.powerOutTime = null;
+            game.power = Math.max(1, game.powerAtOut - 5); game.lastTickTime = Date.now(); 
             io.to('game_' + gameId).emit('rebootApproved', getPublicState(game));
         }
     });

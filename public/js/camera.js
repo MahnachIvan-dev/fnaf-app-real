@@ -36,7 +36,7 @@ const snd = {
     nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.5),
     winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.5),
     camUp:      au('https://files.catbox.moe/d8qyqe.mp3', false, 0.4),
-    camDown:    au('https://files.catbox.moe/hljkyi.mp3', false, 0.4),
+    camDown:    au('https://files.catbox.moe/4a9er6.mp3', false, 0.4),
     camSw:      au('https://files.catbox.moe/4a9er6.mp3', false, 0.3),
     camBroken:  au('https://files.catbox.moe/hvxd67.mp3', false, 0.8),
     noise:      au('https://files.catbox.moe/wn4b5f.mp3', true, 0.25),

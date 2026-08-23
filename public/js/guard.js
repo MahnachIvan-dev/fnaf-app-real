@@ -440,4 +440,174 @@ function updateUI() {
     const pe = document.getElementById('hPwr');
     if (pe) {
         pe.textContent = p + '%';
-        pe.className = 'pwr-val ' + (p <= 15 ? 'lo' : p <= 40 ? 'md' 
+        pe.className = 'pwr-val ' + (p <= 15 ? 'lo' : p <= 40 ? 'md' : 'hi');
+    }
+
+    let bars = 1;
+    if (S.camerasUp) bars++;
+    if (S.doors) S.doors.forEach(d => { if (d.closed) bars++; });
+    const hu = document.getElementById('hUsage');
+    if (hu) hu.textContent = 'Usage: ' + '█'.repeat(bars);
+
+    // Шкала перегрева
+    if (S.doorOverloadEnabled && S.overloadLevel > 0 && !S.overloadTripped) {
+        const hud = document.getElementById('overloadHud');
+        const fill = document.getElementById('overloadFill');
+        if (hud) hud.style.display = 'block';
+        if (fill) {
+            fill.style.width = S.overloadLevel + '%';
+            if (S.overloadLevel > 80) fill.classList.add('danger');
+            else fill.classList.remove('danger');
+        }
+    } else {
+        const hud = document.getElementById('overloadHud');
+        if (hud) hud.style.display = 'none';
+    }
+
+    // Экран сброса щитка
+    const bs = document.getElementById('breakerScreen');
+    if (bs) {
+        if (S.overloadTripped) bs.classList.add('on');
+        else bs.classList.remove('on');
+    }
+
+    // Мини-двери
+    if (S.doors) {
+        S.doors.forEach((d, i) => {
+            const mf = document.getElementById('miniDoor' + i);
+            if (mf && !d.animating) {
+                if (d.closed) mf.classList.add('shut');
+                else mf.classList.remove('shut');
+            }
+        });
+    }
+
+    camsUp = S.camerasUp;
+    curCam = S.currentCamera;
+    updateCamView();
+
+    const po = document.getElementById('pwrOut');
+    if (po && S.systemOff && !S.isDeadPower) {
+        po.classList.add('on');
+        const br = document.getElementById('bigRebootBtn');
+        if (br) br.style.display = 'block';
+    }
+}
+
+function updateCamView() {
+    const cc = document.getElementById('camCont');
+    if (cc) {
+        if (mode === 1) cc.classList.toggle('mode1-hidden', !camsUp);
+        else {
+            cc.classList.toggle('mode2-up', camsUp);
+            cc.classList.toggle('mode2-down', !camsUp);
+        }
+    }
+    const tCam = document.getElementById('tCam');
+    if (tCam) tCam.classList.toggle('on', camsUp);
+    const cl = document.getElementById('camLbl');
+    if (cl) cl.textContent = 'CAM ' + (curCam + 1);
+
+    if (S && S.cameras) {
+        S.cameras.forEach((c, i) => {
+            const el = document.getElementById('cBtn' + i);
+            if (!el) return;
+            el.classList.toggle('active', i === curCam && camsUp);
+            el.classList.toggle('broken', c.broken);
+            el.classList.toggle('off', !c.connected);
+        });
+    }
+
+    if (camsUp && S && S.cameras && S.cameras[curCam]) {
+        const c = S.cameras[curCam];
+        const ns = document.getElementById('noSig');
+        if (c.broken) showBroken();
+        else if (!c.connected) {
+            if (ns) { ns.style.display = 'block'; ns.textContent = 'NO SIGNAL'; }
+        } else {
+            if (ns) ns.style.display = 'none';
+        }
+    }
+
+    if (camsUp) play(snd.noise);
+    else stop(snd.noise);
+}
+
+function showBroken() {
+    const ns = document.getElementById('noSig');
+    if (ns) {
+        ns.style.display = 'block';
+        ns.innerHTML = 'CAMERA MALFUNCTION<br><span style="color:var(--yellow);font-size:.7em;">Repair from camera device</span>';
+    }
+    drawNoise();
+}
+
+function drawNoise() {
+    if (!canvas || !ctx) return;
+    canvas.width = 320;
+    canvas.height = 240;
+    const d = ctx.createImageData(320, 240);
+    for (let i = 0; i < d.data.length; i += 4) {
+        const v = Math.random() * 255;
+        d.data[i] = v; d.data[i + 1] = v; d.data[i + 2] = v; d.data[i + 3] = 255;
+    }
+    ctx.putImageData(d, 0, 0);
+}
+
+function animReboot() {
+    if (!rebooting) return;
+    const p = Math.min((Date.now() - rebootT0) / 15000, 1);
+    const rf = document.getElementById('rebootFill');
+    if (rf) rf.style.width = (p * 100) + '%';
+    if (p < 1) requestAnimationFrame(animReboot);
+}
+
+function doFlash() {
+    const f = document.getElementById('flash');
+    if (!f) return;
+    f.classList.add('pop');
+    setTimeout(() => f.classList.remove('pop'), 120);
+}
+
+function playPhone(night) {
+    const callUrl = PHONE_CALL_URLS[night];
+    if (!callUrl) return;
+    const muteBtn = document.getElementById('muteCallBtn');
+    if (muteBtn) muteBtn.style.display = 'block';
+    if (snd.phone) stop(snd.phone);
+    snd.phone = au(callUrl, false, 0.7);
+    setTimeout(() => {
+        if (!S || S.state !== 'playing' || S.systemOff) return;
+        play(snd.phone);
+    }, 800);
+    snd.phone.onended = () => {
+        if (muteBtn) muteBtn.style.display = 'none';
+        socket.emit('phoneCallDone', gameId);
+    };
+}
+
+window.mutePhoneCall = function () {
+    if (snd.phone) stop(snd.phone);
+    const muteBtn = document.getElementById('muteCallBtn');
+    if (muteBtn) muteBtn.style.display = 'none';
+    socket.emit('phoneCallDone', gameId);
+};
+
+function spawnConf() {
+    const box = document.getElementById('confBox');
+    if (!box) return;
+    const cols = ['#ff0040', '#00ff41', '#ffaa00', '#0088ff', '#ff00ff', '#00ffff', '#fff'];
+    for (let i = 0; i < 80; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti-piece';
+        c.style.left = Math.random() * 100 + '%';
+        c.style.background = cols[Math.floor(Math.random() * cols.length)];
+        c.style.animationDuration = (2 + Math.random() * 3) + 's';
+        c.style.animationDelay = Math.random() * 2 + 's';
+        c.style.width = (5 + Math.random() * 8) + 'px';
+        c.style.height = (5 + Math.random() * 8) + 'px';
+        box.appendChild(c);
+    }
+}
+
+})();

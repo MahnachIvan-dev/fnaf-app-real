@@ -3,21 +3,21 @@ const socket = io();
 const params = new URLSearchParams(location.search);
 const gameId = params.get('game');
 
-if (!gameId) {
-    document.body.innerHTML = '<div style="color:red;padding:40px;font-family:monospace;">No game ID</div>';
-    return;
+if (!gameId) { 
+    document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;font-family:monospace;">No game ID</div>'; 
+    return; 
 }
 
-let S = null;
-let connected = false;
+let S = null; 
+let connected = false; 
 const $ = id => document.getElementById(id);
 
 function au(src, loop, vol) {
-    const a = new Audio();
-    a.loop = !!loop;
+    const a = new Audio(); 
+    a.loop = !!loop; 
     a.volume = vol !== undefined ? vol : 0.4;
-    a.onerror = () => { console.warn('Audio failed:', src); };
-    a.src = src;
+    a.onerror = () => { console.warn('Audio failed:', src); }; 
+    a.src = src; 
     return a;
 }
 
@@ -30,15 +30,8 @@ const snd = {
     win:        au('https://files.catbox.moe/13m0my.mp3', false, 0.7)
 };
 
-function play(a) {
-    if (!a) return;
-    try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
-}
-
-function stop(a) {
-    if (!a) return;
-    try { a.pause(); a.currentTime = 0; } catch (e) {}
-}
+function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
+function stop(a) { if (!a) return; try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
 // ПОДКЛЮЧЕНИЕ
 const btnConn = $('btnConnect');
@@ -47,9 +40,9 @@ if (btnConn) {
         const name = ($('animName') ? $('animName').value : '') || 'Freddy';
         if ($('connectMsg')) $('connectMsg').textContent = 'Connecting...';
         socket.emit('joinAsAnimatronic', { gameId, name }, res => {
-            if (!res || !res.success) {
-                if ($('connectMsg')) $('connectMsg').textContent = 'Error: ' + (res ? res.error : '');
-                return;
+            if (!res || !res.success) { 
+                if ($('connectMsg')) $('connectMsg').textContent = 'Error: ' + (res ? res.error : ''); 
+                return; 
             }
             connected = true;
             if ($('pConnect')) $('pConnect').style.display = 'none';
@@ -60,23 +53,23 @@ if (btnConn) {
     });
 }
 
-// ОТКЛЮЧЕНИЕ ЭЛЕКТРИЧЕСТВА (БЕЗЛИМИТ)
+// ОТКЛЮЧЕНИЕ ЭЛЕКТРИЧЕСТВА
 const btnKP = $('btnKillPwr');
 if (btnKP) {
-    btnKP.addEventListener('click', () => {
-        socket.emit('killPower', { gameId });
+    btnKP.addEventListener('click', () => { 
+        socket.emit('killPower', { gameId }); 
     });
 }
 
 // СКРИМЕР
 const btnSc = $('btnScare');
 if (btnSc) {
-    btnSc.addEventListener('click', () => {
-        if (confirm('Trigger jumpscare?')) socket.emit('jumpscare', { gameId });
+    btnSc.addEventListener('click', () => { 
+        if (confirm('Trigger jumpscare?')) socket.emit('jumpscare', { gameId }); 
     });
 }
 
-// ОДОБРЕНИЕ/ОТКЛОНЕНИЕ ПЕРЕЗАГРУЗКИ
+// ОДОБРЕНИЕ ПЕРЕЗАГРУЗКИ
 const btnApp = $('btnApprove');
 if (btnApp) {
     btnApp.addEventListener('click', () => {
@@ -84,6 +77,8 @@ if (btnApp) {
         if ($('pReboot')) $('pReboot').style.display = 'none';
     });
 }
+
+// ОТКЛОНЕНИЕ ПЕРЕЗАГРУЗКИ
 const btnDn = $('btnDeny');
 if (btnDn) {
     btnDn.addEventListener('click', () => {
@@ -92,7 +87,7 @@ if (btnDn) {
     });
 }
 
-// ОТВЛЕКАЮЩИЙ ЗВУК НА КАМЕРАХ
+// ОТВЛЕКАЮЩИЙ ЗВУК НА КАМЕРАХ С КУЛДАУНОМ 15 СЕК
 const btnDistract = $('btnDistract');
 if (btnDistract) {
     btnDistract.addEventListener('click', () => {
@@ -112,7 +107,7 @@ if (btnDistract) {
     });
 }
 
-// ПОЛОМКА КАМЕРЫ С КУЛДАУНОМ
+// ПОЛОМКА КАМЕРЫ С КУЛДАУНОМ 30 СЕКУНД
 window.breakCam = function (i) {
     socket.emit('breakCamera', { gameId, camIndex: i });
     const btn = document.getElementById('breakCamBtn' + i);
@@ -159,7 +154,6 @@ function updateUI(st) {
         $('aSys').style.color = st.systemOff ? 'var(--red)' : 'var(--green)';
     }
 
-    // Кнопка электричества (безлимит, но disabled когда система уже off)
     const killBtn = $('btnKillPwr');
     if (killBtn) {
         if (st.systemOff) {
@@ -171,7 +165,6 @@ function updateUI(st) {
         }
     }
 
-    // Камеры
     if (!$('camActions').innerHTML) {
         let ch = '';
         if (st.cameras) {
@@ -193,7 +186,23 @@ socket.on('gameLost', () => { stop(snd.nightStart); play(snd.scare); if ($('lose
 socket.on('gameState', updateUI);
 socket.on('cameraBrokenNotify', d => updateUI(d.state));
 socket.on('cameraRepairedNotify', d => updateUI(d.state));
-socket.on('rebootWaitingApproval', st => { S = st; if ($('pReboot')) $('pReboot').style.display = 'block'; });
-socket.on('rebootDenied', st => { if ($('pReboot')) $('pReboot').style.display = 'none'; updateUI(st); });
+
+// ЗАПРОС ПЕРЕЗАГРУЗКИ (С АВТО-СКРОЛЛОМ К КНОПКАМ)
+socket.on('rebootWaitingApproval', st => {
+    S = st;
+    const pReboot = $('pReboot');
+    if (pReboot) {
+        pReboot.style.display = 'block';
+        // Автоматически и плавно листаем страницу вниз к кнопкам
+        setTimeout(() => {
+            pReboot.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+    }
+});
+
+socket.on('rebootDenied', st => {
+    if ($('pReboot')) $('pReboot').style.display = 'none';
+    updateUI(st);
+});
 
 })();

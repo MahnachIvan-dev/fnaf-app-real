@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <!-- BOOT -->
     <div id="scrBoot" class="page-center">
         <div class="title title-big">FIVE NIGHTS<br>AT FREDDY'S</div>
         <div class="title title-sm" style="color:var(--green); margin-bottom:30px;">REAL LIFE EDITION</div>
@@ -15,7 +14,6 @@
         <button class="btn" onclick="showScreen('scrCreate')">▶ CREATE GAME</button>
     </div>
 
-    <!-- CREATE -->
     <div id="scrCreate" class="page-center" style="display:none">
         <div class="title title-med">GAME SETUP</div>
         <div class="panel">
@@ -42,8 +40,13 @@
                     <option value="3">Night 3</option>
                     <option value="4">Night 4</option>
                     <option value="5">Night 5</option>
-                    <option value="6">Night 6</option>
-                    <option value="7">Night 7</option>
+                </select>
+            </div>
+            <div class="row" style="border-top: 2px dashed var(--yellow); margin-top:10px; padding-top:15px;">
+                <span class="row-label" style="color:var(--yellow);">DOOR OVERLOAD:</span>
+                <select id="cfgOverload" style="border-color:var(--yellow); color:var(--yellow);">
+                    <option value="true" selected>ON (Anti-Camper)</option>
+                    <option value="false">OFF</option>
                 </select>
             </div>
             <div style="text-align:center; margin-top:18px;">
@@ -53,7 +56,6 @@
         </div>
     </div>
 
-    <!-- LOBBY -->
     <div id="scrLobby" class="page-center" style="display:none">
         <div class="title title-med">GAME LOBBY</div>
         <div class="night-label" id="lblNight"></div>
@@ -65,104 +67,53 @@
             <button class="btn" id="btnStart" onclick="doStart()" disabled>▶ START NIGHT</button>
             <button class="btn yellow" onclick="openGuard()">OPEN GUARD</button>
         </div>
-        <div style="color:#555; font-size:.9rem; text-align:center; margin-top:12px; max-width:500px;">
-            Share camera links with friends' phones.<br>
-            Share the animatronic link with the enemy player.<br>
-            At least 1 camera must be connected to start.
-        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let G = null; // current game data
-
-        function showScreen(id) {
-            document.querySelectorAll('.page-center').forEach(el => el.style.display = 'none');
-            document.getElementById(id).style.display = 'flex';
-        }
-
+        let G = null;
+        function showScreen(id) { document.querySelectorAll('.page-center').forEach(el => el.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
         function doCreate() {
             const s = {
                 mode: +document.getElementById('cfgMode').value,
                 doorCount: +document.getElementById('cfgDoors').value,
-                night: +document.getElementById('cfgNight').value
+                night: +document.getElementById('cfgNight').value,
+                doorOverload: document.getElementById('cfgOverload').value === 'true'
             };
             socket.emit('createGame', s, res => {
                 if (!res.success) return alert('Error');
-                G = res;
-                showScreen('scrLobby');
-                renderLobby();
+                G = res; showScreen('scrLobby'); renderLobby();
             });
         }
-
         function renderLobby() {
             document.getElementById('lblNight').textContent = 'Night ' + G.state.night;
             document.getElementById('lblGameId').textContent = 'ID: ' + G.gameId;
-
-            const base = location.origin;
-            let h = '';
-
-            // Guard
+            const base = location.origin; let h = '';
             h += linkRow('🛡️ GUARD', G.links.guard);
-
-            // Cameras
-            G.links.cameras.forEach((l, i) => {
-                const c = G.state.cameras[i];
-                const on = c && c.connected;
-                h += linkRow('📷 CAM ' + (i+1), l, 'cam' + i, on);
-            });
-
-            // Animatronic
+            G.links.cameras.forEach((l, i) => { const on = G.state.cameras[i] && G.state.cameras[i].connected; h += linkRow('📷 CAM ' + (i+1), l, 'cam' + i, on); });
             h += linkRow('🤖 ANIMATRONIC', G.links.animatronic, 'anim', false);
-
             document.getElementById('linksBox').innerHTML = h;
             checkReady(G.state);
         }
-
         function linkRow(name, path, statusId, on) {
-            const base = location.origin;
-            const full = base + path;
-            let s = '';
-            if (statusId) {
-                const cls = on ? 'on' : 'off';
-                const txt = on ? '✓ ONLINE' : '✗ WAITING';
-                s = `<span class="link-status ${cls}" id="ls_${statusId}">${txt}</span>`;
-            }
-            return `<div class="link-row">
-                <span>${name}</span>
-                <a href="${path}" target="_blank">${full}</a>
-                ${s}
-                <button class="copy-btn" onclick="copyTxt('${full}')">COPY</button>
-            </div>`;
+            const full = location.origin + path;
+            const cls = on ? 'on' : 'off';
+            const txt = on ? '✓ ONLINE' : '✗ WAITING';
+            const s = statusId ? `<span class="link-status ${cls}" id="ls_${statusId}">${txt}</span>` : '';
+            return `<div class="link-row"><span>${name}</span><a href="${path}" target="_blank">${full}</a>${s}<button class="copy-btn" onclick="copyTxt('${full}')">COPY</button></div>`;
         }
-
         function copyTxt(t) {
             navigator.clipboard.writeText(t).catch(() => {
-                const ta = document.createElement('textarea');
-                ta.value = t; document.body.appendChild(ta);
-                ta.select(); document.execCommand('copy');
-                document.body.removeChild(ta);
+                const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
             });
         }
-
-        function checkReady(st) {
-            const ok = st.cameras && st.cameras.some(c => c.connected);
-            document.getElementById('btnStart').disabled = !ok;
-        }
-
+        function checkReady(st) { document.getElementById('btnStart').disabled = !(st.cameras && st.cameras.some(c => c.connected)); }
         function doStart() { if (G) socket.emit('startGame', G.gameId); }
         function openGuard() { if (G) window.open(G.links.guard, '_blank'); }
 
-        socket.on('cameraConnected', d => {
-            const el = document.getElementById('ls_cam' + d.camIndex);
-            if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; }
-            checkReady(d.state);
-        });
-        socket.on('animatronicConnected', d => {
-            const el = document.getElementById('ls_anim');
-            if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; }
-        });
+        socket.on('cameraConnected', d => { const el = document.getElementById('ls_cam' + d.camIndex); if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; } checkReady(d.state); });
+        socket.on('animatronicConnected', () => { const el = document.getElementById('ls_anim'); if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; } });
         socket.on('gameState', d => checkReady(d));
         socket.on('gameStarted', () => { if (G) location.href = G.links.guard; });
     </script>

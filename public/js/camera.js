@@ -36,13 +36,8 @@ const snd = {
     dOpen:      au('https://files.catbox.moe/i0tyqu.mp3', false, 0.4),
     pwrOut:     au('https://files.catbox.moe/hvxd67.mp3', false, 0.6),
     pwrOn:      au('https://files.catbox.moe/zuy3mk.mp3', false, 0.6),
-    scare:      au('https://files.catbox.moe/bfucts.mp3', false, 0.9),
-    win:        au('https://files.catbox.moe/13m0my.mp3', false, 0.7),
-    
-    // ПРОВокации
-    prov_laugh: au('https://files.catbox.moe/bfucts.mp3', false, 1.0), // Заменить на смех
-    prov_steps: au('https://files.catbox.moe/xrln60.mp3', false, 1.0), // Заменить на шаги
-    prov_whisper: au('https://files.catbox.moe/ad5yrw.mp3', false, 1.0) // Заменить на шепот
+    scare:      au('https://files.catbox.moe/bfucts.mp3', false, 0.9), // ОРИГИНАЛЬНЫЙ СКРИМЕР
+    win:        au('https://files.catbox.moe/13m0my.mp3', false, 0.7)
 };
 
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
@@ -51,9 +46,7 @@ function stop(a) { if (!a) return; try { a.pause(); a.currentTime = 0; } catch(e
 let streaming = false; let broken = false; let repairing = false; let repairT0 = 0; let sendTimer = null;
 
 socket.emit('joinAsCamera', { gameId, camIndex }, res => {
-    if (!res || !res.success) {
-        if (statusTxt) { statusTxt.textContent = 'Error: ' + (res ? res.error : 'Unknown'); statusTxt.style.color = 'var(--red)'; } return;
-    }
+    if (!res || !res.success) { if (statusTxt) { statusTxt.textContent = 'Error: ' + (res ? res.error : 'Unknown'); statusTxt.style.color = 'var(--red)'; } return; }
     if (statusTxt) statusTxt.textContent = 'Connected! Enable camera below.';
     if (btnEnable) btnEnable.style.display = 'inline-block';
     if (res.isBroken) triggerBrokenState();
@@ -109,23 +102,15 @@ function animRepair() {
 function triggerBrokenState() {
     broken = true; repairing = false;
     if (brokenFull) brokenFull.classList.add('on');
-    if (btnRepair) { btnRepair.style.display = 'inline-block'; }
+    if (btnRepair) { btnRepair.style.display = 'inline-block'; btnRepair.disabled = false; }
     if (repairBar) repairBar.style.display = 'none';
     if (repairStatus) repairStatus.textContent = '';
     play(snd.camBroken); play(snd.noise);
 }
 
-// Слушатель провокаций
-socket.on('playCameraSound', type => {
-    if (type === 'laugh') play(snd.prov_laugh);
-    if (type === 'steps') play(snd.prov_steps);
-    if (type === 'whisper') play(snd.prov_whisper);
-});
-
-socket.on('cameraBroken', (data) => { if (data && data.camIndex !== camIndex) return; triggerBrokenState(); });
-
+socket.on('cameraBroken', (data) => { if (data && typeof data.camIndex === 'number' && data.camIndex !== camIndex) return; triggerBrokenState(); });
 socket.on('cameraRepaired', (data) => {
-    if (data && data.camIndex !== camIndex) return;
+    if (data && typeof data.camIndex === 'number' && data.camIndex !== camIndex) return;
     broken = false; repairing = false;
     if (brokenFull) brokenFull.classList.remove('on');
     if (repairBar) repairBar.style.display = 'none';
@@ -133,32 +118,13 @@ socket.on('cameraRepaired', (data) => {
     if (statusTxt) { statusTxt.textContent = 'Camera active — streaming'; statusTxt.style.color = 'var(--green)'; }
     stop(snd.noise);
 });
-
-socket.on('gameState', (st) => {
-    if (st && st.cameras && st.cameras[camIndex]) {
-        const c = st.cameras[camIndex];
-        if (c.broken && !broken && !repairing) triggerBrokenState();
-    }
-});
-
+socket.on('gameState', (st) => { if (st && st.cameras && st.cameras[camIndex]) { const c = st.cameras[camIndex]; if (c.broken && !broken && !repairing) triggerBrokenState(); } });
 socket.on('camerasToggled', d => { if (d.camerasUp) play(snd.camUp); else play(snd.camDown); });
 socket.on('cameraSwitched', () => { play(snd.camSw); });
 socket.on('doorToggled', d => { if (d.closed) play(snd.dClose); else play(snd.dOpen); });
 socket.on('powerOut', () => { stop(snd.nightStart); play(snd.pwrOut); });
 socket.on('rebootApproved', () => { play(snd.pwrOn); });
-
-socket.on('gameWon', () => {
-    streaming = false; if (sendTimer) clearInterval(sendTimer);
-    stop(snd.noise); stop(snd.nightStart); play(snd.win);
-    const we = document.getElementById('winEnd'); if (we) we.classList.add('on');
-    snd.win.onended = () => { play(snd.winMelody); };
-});
-
-socket.on('gameLost', () => {
-    streaming = false; if (sendTimer) clearInterval(sendTimer);
-    stop(snd.noise); stop(snd.nightStart); play(snd.scare);
-    const le = document.getElementById('loseEnd'); if (le) le.classList.add('on');
-});
-
+socket.on('gameWon', () => { streaming = false; if (sendTimer) clearInterval(sendTimer); stop(snd.noise); stop(snd.nightStart); play(snd.win); const we = document.getElementById('winEnd'); if (we) we.classList.add('on'); snd.win.onended = () => { play(snd.winMelody); }; });
+socket.on('gameLost', () => { streaming = false; if (sendTimer) clearInterval(sendTimer); stop(snd.noise); stop(snd.nightStart); play(snd.scare); const le = document.getElementById('loseEnd'); if (le) le.classList.add('on'); });
 socket.on('gameStarted', () => { play(snd.nightStart); });
 })();

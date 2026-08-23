@@ -13,27 +13,41 @@ function au(src, loop, vol) {
 }
 
 const PHONE_CALL_URLS = {
-    1: 'https://files.catbox.moe/9hb3et.ogg', 2: 'https://files.catbox.moe/8kk4je.ogg',
-    3: 'https://files.catbox.moe/8kk4je.ogg', 4: 'https://files.catbox.moe/8kk4je.ogg', 5: 'https://files.catbox.moe/8kk4je.ogg',
+    1: 'https://files.catbox.moe/9hb3et.ogg',
+    2: 'https://files.catbox.moe/8kk4je.ogg',
+    3: 'https://files.catbox.moe/8kk4je.ogg',
+    4: 'https://files.catbox.moe/8kk4je.ogg',
+    5: 'https://files.catbox.moe/8kk4je.ogg',
 };
 
 const snd = {
-    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6), winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
-    amb: au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2), camUp: au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
-    camDown: au('https://files.catbox.moe/hljkyi.mp3', false, 0.5), camSw: au('https://files.catbox.moe/4a9er6.mp3', false, 0.4),
-    dClose: au('https://files.catbox.moe/xrln60.mp3', false, 0.6), dOpen: au('https://files.catbox.moe/i0tyqu.mp3', false, 0.5),
-    pwrOut: au('https://files.catbox.moe/hvxd67.mp3', false, 0.7), pwrOn: au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7),
-    scare: au('https://files.catbox.moe/bfucts.mp3', false, 1.0), win: au('https://files.catbox.moe/13m0my.mp3', false, 0.8),
-    noise: au('https://files.catbox.moe/wn4b5f.mp3', true, 0.08), phone: null
+    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6),
+    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
+    amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
+    camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
+    camDown:  au('https://files.catbox.moe/hljkyi.mp3', false, 0.5),
+    camSw:    au('https://files.catbox.moe/4a9er6.mp3', false, 0.4),
+    dClose:   au('https://files.catbox.moe/xrln60.mp3', false, 0.6),
+    dOpen:    au('https://files.catbox.moe/i0tyqu.mp3', false, 0.5),
+    pwrOut:   au('https://files.catbox.moe/hvxd67.mp3', false, 0.7),
+    pwrOn:    au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7),
+    scare:    au('https://files.catbox.moe/bfucts.mp3', false, 1.0),
+    win:      au('https://files.catbox.moe/13m0my.mp3', false, 0.8),
+    noise:    au('https://files.catbox.moe/wn4b5f.mp3', true, 0.08),
+    phone:    null
 };
 
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
 function stop(a) { if (!a) return; try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
-document.getElementById('audioUnlock').addEventListener('click', function() {
-    this.style.display = 'none';
-    try { snd.amb.play().catch(()=>{}); snd.amb.pause(); } catch(e) {}
-});
+// Разблокировка звука при первом тапе (политика браузеров)
+const audioUnlock = document.getElementById('audioUnlock');
+if (audioUnlock) {
+    audioUnlock.addEventListener('click', function() {
+        this.style.display = 'none';
+        try { snd.amb.play().catch(()=>{}); snd.amb.pause(); } catch(e) {}
+    });
+}
 
 const canvas = document.getElementById('camCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
@@ -65,20 +79,16 @@ function init() {
 }
 
 const DOOR_NAMES = ['L', 'R', 'B'];
-
 function buildDoors() {
-    const hud = document.getElementById('doorStatusHud');
-    if (!hud) return;
+    const hud = document.getElementById('doorStatusHud'); if (!hud) return;
     let html = ''; const count = S ? S.doorCount : 2;
     for(let i = 0; i < count; i++) { html += `<div class="mini-door-frame" id="miniDoor${i}"><div class="mini-door-label">${DOOR_NAMES[i]}</div><div class="mini-door-metal"></div></div>`; }
     hud.innerHTML = html;
 }
-
 function doDoor(i) { socket.emit('toggleDoor', { gameId, doorIndex: i }); }
 
 function buildCamBtns() {
-    const box = document.getElementById('camBtns');
-    if (!box) return; let h = '';
+    const box = document.getElementById('camBtns'); if (!box) return; let h = '';
     if (S && S.cameras) {
         S.cameras.forEach((c, i) => { const cls = c.connected ? (c.broken ? 'broken' : '') : 'off'; h += `<div class="cam-btn-item ${cls} ${i===curCam&&camsUp?'active':''}" id="cBtn${i}">CAM ${i+1}</div>`; });
     }
@@ -94,8 +104,7 @@ function buildCamBtns() {
 }
 
 function buildTouchBar() {
-    const bar = document.getElementById('touchBar');
-    if (!bar) return;
+    const bar = document.getElementById('touchBar'); if (!bar) return;
     let h = `<div class="touch-btn" id="tCam">📷 CAM</div>`;
     const count = S ? S.doorCount : 2;
     for(let i = 0; i < count; i++) { h += `<div class="touch-btn" id="tDoor${i}">🚪 DOOR ${i+1}</div>`; }
@@ -139,9 +148,14 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
+// СТАРТ ИГРЫ (МЕЛОДИЯ -> ФОН + ЗВОНОК)
 socket.on('gameStarted', st => {
-    S = st; mode = st.mode; updateUI(); play(snd.nightStart);
-    snd.nightStart.onended = () => { play(snd.amb); playPhone(st.night); };
+    S = st; mode = st.mode; updateUI(); 
+    play(snd.nightStart);
+    snd.nightStart.onended = () => { 
+        try { play(snd.amb); } catch(e) {}
+        playPhone(st.night); 
+    };
 });
 
 socket.on('gameState', st => { S = st; updateUI(); });
@@ -150,9 +164,7 @@ socket.on('camerasToggled', d => { S = d.state; camsUp = d.camerasUp; updateCamV
 socket.on('cameraSwitched', d => { S = d.state; curCam = d.currentCamera; updateCamView(); play(snd.camSw); });
 
 socket.on('doorToggled', d => {
-    S = d.state;
-    const miniFrame = document.getElementById('miniDoor' + d.doorIndex);
-    const tBtn = document.getElementById('tDoor' + d.doorIndex);
+    S = d.state; const miniFrame = document.getElementById('miniDoor' + d.doorIndex); const tBtn = document.getElementById('tDoor' + d.doorIndex);
     if (miniFrame) {
         miniFrame.classList.remove('anim-close','anim-open'); void miniFrame.offsetWidth; 
         if (d.closed) { miniFrame.classList.add('anim-close','shut'); play(snd.dClose); } 
@@ -215,7 +227,6 @@ socket.on('rebootApproved', st => {
     const po = document.getElementById('pwrOut'); if (po) po.classList.remove('on');
     const rb = document.getElementById('rebootBar'); if (rb) rb.style.display = 'none';
     const rm = document.getElementById('rebootMsg'); if (rm) rm.textContent = '';
-    
     doFlash(); play(snd.pwrOn); play(snd.amb); updateUI();
 });
 
@@ -253,14 +264,13 @@ function updateUI() {
     const hu = document.getElementById('hUsage'); if (hu) hu.textContent = 'Usage: ' + '█'.repeat(bars);
 
     if (S.doorOverloadEnabled && S.overloadLevel > 0 && !S.overloadTripped) {
-        document.getElementById('overloadHud').style.display = 'block';
-        document.getElementById('overloadFill').style.width = S.overloadLevel + '%';
-        if (S.overloadLevel > 80) document.getElementById('overloadFill').classList.add('danger');
-        else document.getElementById('overloadFill').classList.remove('danger');
-    } else { document.getElementById('overloadHud').style.display = 'none'; }
+        const hud = document.getElementById('overloadHud'); const fill = document.getElementById('overloadFill');
+        if (hud) hud.style.display = 'block';
+        if (fill) { fill.style.width = S.overloadLevel + '%'; if (S.overloadLevel > 80) fill.classList.add('danger'); else fill.classList.remove('danger'); }
+    } else { const hud = document.getElementById('overloadHud'); if (hud) hud.style.display = 'none'; }
 
-    if (S.overloadTripped) document.getElementById('breakerScreen').classList.add('on');
-    else document.getElementById('breakerScreen').classList.remove('on');
+    const bs = document.getElementById('breakerScreen');
+    if (bs) { if (S.overloadTripped) bs.classList.add('on'); else bs.classList.remove('on'); }
 
     if (S.doors) {
         S.doors.forEach((d, i) => {
@@ -303,11 +313,8 @@ function updateCamView() {
 }
 
 function showBroken() { const ns = document.getElementById('noSig'); if (ns) { ns.style.display = 'block'; ns.innerHTML = 'CAMERA MALFUNCTION<br><span style="color:var(--yellow);font-size:.7em;">Repair from camera device</span>'; } drawNoise(); }
-
 function drawNoise() {
-    if (!canvas || !ctx) return;
-    canvas.width = 320; canvas.height = 240;
-    const d = ctx.createImageData(320, 240);
+    if (!canvas || !ctx) return; canvas.width = 320; canvas.height = 240; const d = ctx.createImageData(320, 240);
     for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = v; d.data[i+1] = v; d.data[i+2] = v; d.data[i+3] = 255; }
     ctx.putImageData(d, 0, 0);
 }
@@ -318,18 +325,15 @@ function animReboot() {
     const rf = document.getElementById('rebootFill'); if (rf) rf.style.width = (p * 100) + '%';
     if (p < 1) requestAnimationFrame(animReboot);
 }
-
 function doFlash() { const f = document.getElementById('flash'); if (!f) return; f.classList.add('pop'); setTimeout(() => f.classList.remove('pop'), 120); }
 
 function playPhone(night) {
-    const callUrl = PHONE_CALL_URLS[night];
-    if (!callUrl) return;
+    const callUrl = PHONE_CALL_URLS[night]; if (!callUrl) return;
     const muteBtn = document.getElementById('muteCallBtn'); if (muteBtn) muteBtn.style.display = 'block';
     snd.phone = au(callUrl, false, 0.7);
-    setTimeout(() => { if (!S || S.state !== 'playing' || S.systemOff) return; play(snd.phone); }, 1000);
+    setTimeout(() => { if (!S || S.state !== 'playing' || S.systemOff) return; play(snd.phone); }, 800);
     snd.phone.onended = () => { if (muteBtn) muteBtn.style.display = 'none'; socket.emit('phoneCallDone', gameId); };
 }
-
 window.mutePhoneCall = function() { if (snd.phone) stop(snd.phone); const muteBtn = document.getElementById('muteCallBtn'); if (muteBtn) muteBtn.style.display = 'none'; socket.emit('phoneCallDone', gameId); };
 
 function spawnConf() {

@@ -12,7 +12,7 @@ function au(src, loop, vol) {
     a.src = src; return a;
 }
 
-// 📞 ТВОИ ЗВОНКИ ФОНГАЯ С РАСШИРЕНИЕМ .OGG
+ // 📞 ТВОИ ЗВОНКИ ФОНГАЯ С РАСШИРЕНИЕМ .OGG
 const PHONE_CALL_URLS = {
     1: 'https://files.catbox.moe/9hb3et.ogg',
     2: 'https://files.catbox.moe/8kk4je.ogg',
@@ -39,15 +39,22 @@ const snd = {
     phone:    null
 };
 
+
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
 function stop(a) { if (!a) return; try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
+function unlockAllAudio() {
+    const unlockDiv = document.getElementById('audioUnlock');
+    if (unlockDiv) unlockDiv.style.display = 'none';
+    try {
+        snd.amb.play().then(() => { if (!S || S.state !== 'playing') snd.amb.pause(); }).catch(()=>{});
+    } catch(e) {}
+}
+
 const audioUnlock = document.getElementById('audioUnlock');
 if (audioUnlock) {
-    audioUnlock.addEventListener('click', function() {
-        this.style.display = 'none';
-        try { snd.amb.play().catch(()=>{}); snd.amb.pause(); } catch(e) {}
-    });
+    audioUnlock.addEventListener('click', unlockAllAudio);
+    audioUnlock.addEventListener('touchstart', unlockAllAudio);
 }
 
 const canvas = document.getElementById('camCanvas');
@@ -149,17 +156,12 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
-// ГАРАНТИРОВАННЫЙ СТАРТ С ВНИМАНИЕМ К НОЧИ
 socket.on('gameStarted', st => {
     S = st; mode = st.mode; updateUI();
     
-    // 1. Старт заставки
     play(snd.nightStart);
-    
-    // 2. Фоновый гул сразу
     play(snd.amb);
 
-    // 3. Звонок Телефонного парня через 2.5 секунды
     setTimeout(() => {
         if (S && S.state === 'playing' && !S.systemOff) {
             playPhone(st.night || 1);
@@ -336,14 +338,11 @@ function animReboot() {
 }
 function doFlash() { const f = document.getElementById('flash'); if (!f) return; f.classList.add('pop'); setTimeout(() => f.classList.remove('pop'), 120); }
 
-// ВОСПРОИЗВЕДЕНИЕ ЗВОНКА ФОНГАЯ
 function playPhone(night) {
     const nightNum = night || (S && S.night) || 1;
-    const callUrl = PHONE_CALL_URLS[nightNum];
+    const callUrl = PHONE_CALL_URLS[nightNum] || PHONE_CALL_URLS[1];
     if (!callUrl) return;
-
-    const muteBtn = document.getElementById('muteCallBtn'); 
-    if (muteBtn) muteBtn.style.display = 'block';
+    const muteBtn = document.getElementById('muteCallBtn'); if (muteBtn) muteBtn.style.display = 'block';
     
     if (snd.phone) stop(snd.phone);
     snd.phone = au(callUrl, false, 0.7);

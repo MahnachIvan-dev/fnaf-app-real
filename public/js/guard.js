@@ -13,6 +13,7 @@ function au(src, loop, vol) {
     a.src = src; return a;
 }
 
+// 📞 ТВОИ ЗВОНКИ ФОНГАЯ (.OGG)
 const PHONE_CALL_URLS = {
     1: 'https://files.catbox.moe/9hb3et.ogg',
     2: 'https://files.catbox.moe/8kk4je.ogg',
@@ -21,9 +22,11 @@ const PHONE_CALL_URLS = {
     5: 'https://files.catbox.moe/8kk4je.ogg'
 };
 
+// 🔊 ТВОИ МЕЛОДИИ НАЧАЛА, ПОБЕДЫ И ОФИСА (.OGG и .MP3)
 const snd = {
-    nightStart: au('https://files.catbox.moe/8y8z75.mp3', false, 0.6),
-    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
+    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6), // Заставка перед ночью
+    winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6), // Финальная мелодия
+    win:        au('https://files.catbox.moe/esjta4.ogg', false, 0.8), // Звук 6 AM
     amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
     camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
     camDown:  au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
@@ -33,7 +36,6 @@ const snd = {
     pwrOut:   au('https://files.catbox.moe/hvxd67.mp3', false, 0.7),
     pwrOn:    au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7),
     scare:    au('https://files.catbox.moe/bfucts.mp3', false, 1.0),
-    win:      au('https://files.catbox.moe/zuy3mk.mp3', false, 0.8),
     noise:    au('https://files.catbox.moe/wn4b5f.mp3', true, 0.08),
     phone:    null
 };
@@ -41,7 +43,6 @@ const snd = {
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
 function stop(a) { if (!a) return; try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
-// РАЗБЛОКИРОВКА АУДИО
 const audioUnlock = document.getElementById('audioUnlock');
 if (audioUnlock) {
     audioUnlock.addEventListener('click', function() {
@@ -66,9 +67,19 @@ function handleStartGame(st) {
     if (gameStartedHandled) return;
     gameStartedHandled = true;
     S = st; mode = st.mode; updateUI();
+    
+    // 1. Мелодия старта ночи
     play(snd.nightStart);
-    play(snd.amb); // Запуск фона
-    setTimeout(() => { if (S && S.state === 'playing' && !S.systemOff) playPhone(st.night || 1); }, 2500);
+    
+    // 2. Фоновый гул офиса
+    play(snd.amb);
+
+    // 3. Звонок Фонгая
+    setTimeout(() => {
+        if (S && S.state === 'playing' && !S.systemOff) {
+            playPhone(st.night || 1);
+        }
+    }, 2000);
 }
 
 socket.emit('joinAsGuard', gameId, res => {
@@ -120,6 +131,7 @@ function buildTouchBar() {
     const count = S ? S.doorCount : 2;
     for(let i = 0; i < count; i++) { h += `<div class="touch-btn" id="tDoor${i}">🚪 DOOR ${i+1}</div>`; }
     bar.innerHTML = h;
+
     const camBtn = document.getElementById('tCam');
     if (camBtn) { camBtn.addEventListener('click', toggleCams); camBtn.addEventListener('touchend', e => { e.preventDefault(); toggleCams(); }); }
     for(let i = 0; i < count; i++) {
@@ -130,16 +142,18 @@ function buildTouchBar() {
 
 function toggleCams() { socket.emit('toggleCameras', gameId); }
 function switchCam(i) { socket.emit('switchCamera', { gameId, camIndex: i }); }
+
 function doReboot() {
     if (!S || !S.systemOff || rebooting || S.isDeadPower) return;
-    rebooting = true; rebootT0 = Date.now(); socket.emit('startReboot', gameId);
+    rebooting = true; rebootT0 = Date.now();
+    socket.emit('startReboot', gameId);
 }
 
 const bigRb = document.getElementById('bigRebootBtn');
 if (bigRb) { bigRb.addEventListener('click', doReboot); bigRb.addEventListener('touchend', e => { e.preventDefault(); doReboot(); }); }
 
 document.addEventListener('keydown', e => {
-    if (!S || S.state !== 'playing' || e.repeat) return; // e.repeat блокирует зажатие пробела
+    if (!S || S.state !== 'playing' || e.repeat) return;
     const k = e.code;
     if (k === 'Space') { e.preventDefault(); toggleCams(); }
     else if (k === 'Digit1' || k === 'Numpad1') switchCam(0);
@@ -158,10 +172,10 @@ document.addEventListener('keydown', e => {
 
 socket.on('gameStarted', st => { handleStartGame(st); });
 socket.on('gameState', st => { S = st; updateUI(); });
+
 socket.on('camerasToggled', d => { S = d.state; camsUp = d.camerasUp; updateCamView(); if (camsUp) play(snd.camUp); else play(snd.camDown); });
 socket.on('cameraSwitched', d => { S = d.state; curCam = d.currentCamera; updateCamView(); play(snd.camSw); });
 
-// АНИМАЦИИ МИНИ-ДВЕРЕЙ
 socket.on('doorToggled', d => {
     S = d.state; const miniFrame = document.getElementById('miniDoor' + d.doorIndex); const tBtn = document.getElementById('tDoor' + d.doorIndex);
     if (miniFrame) {
@@ -171,6 +185,7 @@ socket.on('doorToggled', d => {
     }
     if (tBtn) tBtn.classList.toggle('door-closed', d.closed);
 });
+
 socket.on('doorAnimDone', d => {
     S = d.state;
     if (d.state && d.state.doors) {
@@ -241,6 +256,7 @@ socket.on('gameLost', d => {
     play(snd.scare); const ss = document.getElementById('scareScr'); if (ss) ss.classList.add('on');
 });
 
+// ПОБЕДА 6:00 AM
 socket.on('gameWon', st => {
     S = st; stop(snd.amb); stop(snd.noise); stop(snd.nightStart); if (snd.phone) stop(snd.phone);
     const fVid = document.getElementById('freddyVid'); if (fVid) fVid.pause();
@@ -248,8 +264,17 @@ socket.on('gameWon', st => {
     const ws = document.getElementById('winScr'); if (ws) ws.classList.add('on');
     const slide = document.getElementById('digitSlide'); if (slide) slide.classList.remove('shift');
 
-    setTimeout(() => { if (slide) slide.classList.add('shift'); play(snd.win); spawnConf(); }, 1000);
-    snd.win.onended = () => { play(snd.winMelody); };
+    // 1. Смена цифры 5 -> 6 + звук победы
+    setTimeout(() => { 
+        if (slide) slide.classList.add('shift'); 
+        play(snd.win); 
+        spawnConf(); 
+    }, 800);
+
+    // 2. Гарантированный запуск финальной мелодии победы
+    setTimeout(() => {
+        play(snd.winMelody);
+    }, 2500);
 });
 
 function updateUI() {
@@ -326,11 +351,14 @@ function animReboot() {
 function doFlash() { const f = document.getElementById('flash'); if (!f) return; f.classList.add('pop'); setTimeout(() => f.classList.remove('pop'), 120); }
 
 function playPhone(night) {
-    const callUrl = PHONE_CALL_URLS[night];
+    const nightNum = night || (S && S.night) || 1;
+    const callUrl = PHONE_CALL_URLS[nightNum] || PHONE_CALL_URLS[1];
     if (!callUrl) return;
     const muteBtn = document.getElementById('muteCallBtn'); if (muteBtn) muteBtn.style.display = 'block';
     
+    if (snd.phone) stop(snd.phone);
     snd.phone = au(callUrl, false, 0.7);
+
     play(snd.phone);
 
     snd.phone.onended = () => { if (muteBtn) muteBtn.style.display = 'none'; socket.emit('phoneCallDone', gameId); };

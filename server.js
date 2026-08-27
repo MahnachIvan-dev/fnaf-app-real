@@ -14,17 +14,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 const games = {};
 
 // ===== НАСТРОЙКИ ВРЕМЕНИ И ЭНЕРГИИ =====
-const HOUR_DURATION_MS = 2 * 60 * 1000; // 1 час = 2 минуты (Вся ночь 12 минут)
+const HOUR_DURATION_MS = 2 * 60 * 1000; // 1 час = 2 минуты
 const MAX_POWER = 100;
-const TICK_INTERVAL = 500;
+const TICK_INTERVAL = 500; 
 
-// Расход в секунду (%)
-const BASE_POWER_DRAIN = 0.050;   // Пассивный режим (~36% за ночь)
-const CAMERA_POWER_DRAIN = 0.040; // Планшет камер
-const DOOR_POWER_DRAIN = 0.114;   // 2 двери = ~0.278%/сек -> ноль ровно в 3:00 AM (6 минут)
+const BASE_POWER_DRAIN = 0.050;   
+const CAMERA_POWER_DRAIN = 0.040; 
+const DOOR_POWER_DRAIN = 0.114;   
 
 const REBOOT_TIME = 15000;
-const POWER_OUT_DEATH_TIME = 35000;
+const POWER_OUT_DEATH_TIME = 35000; // Только для естественного нуля энергии (видео Фредди)
 const DOOR_CLOSE_MS = 300;
 const DOOR_OPEN_MS = 2000;
 
@@ -52,26 +51,18 @@ function createGame(settings) {
         guardSocket: null,
         powerOutTime: null,
         systemOff: false,
-        isDeadPower: false,
+        isDeadPower: false, 
         rebootInProgress: false,
         rebootApprovalNeeded: false,
-        overloadLevel: 0,
+        overloadLevel: 0,     
         overloadTripped: false
     };
-    for (let i = 0; i < game.settings.doorCount; i++) {
-        game.doors.push({ id: i, closed: false, animating: false });
-    }
-    games[gameId] = game;
-    return game;
+    for (let i = 0; i < game.settings.doorCount; i++) game.doors.push({ id: i, closed: false, animating: false });
+    games[gameId] = game; return game;
 }
 
-function getGameHour(game) { 
-    return Math.min(Math.floor((game.activePlayTimeMs || 0) / HOUR_DURATION_MS), 6); 
-}
-
-function getTimeString(hour) { 
-    return hour === 0 ? '12 AM' : (hour >= 6 ? '6 AM' : hour + ' AM'); 
-}
+function getGameHour(game) { return Math.min(Math.floor((game.activePlayTimeMs || 0) / HOUR_DURATION_MS), 6); }
+function getTimeString(hour) { return hour === 0 ? '12 AM' : (hour >= 6 ? '6 AM' : hour + ' AM'); }
 
 function getPublicState(game) {
     return {
@@ -92,12 +83,13 @@ function getPublicState(game) {
         isDeadPower: game.isDeadPower,
         rebootInProgress: game.rebootInProgress,
         rebootApprovalNeeded: game.rebootApprovalNeeded,
-        overloadLevel: Math.round(game.overloadLevel),
+        overloadLevel: Math.round(game.overloadLevel), 
         overloadTripped: game.overloadTripped,
         doorOverloadEnabled: game.settings.doorOverload
     };
 }
 
+// ===== ИГРОВОЙ ЦИКЛ =====
 setInterval(() => {
     const now = Date.now();
     Object.values(games).forEach(game => {
@@ -106,28 +98,24 @@ setInterval(() => {
         const delta = now - (game.lastTickTime || now);
         game.lastTickTime = now;
 
-        // ВРЕМЯ ИДЕТ ТОЛЬКО ПРИ СВЕТЕ
+        // ВРЕМЯ ИДЕТ ТОЛЬКО КОГДА СВЕТ ВКЛЮЧЕН
         if (!game.systemOff) {
             game.activePlayTimeMs += delta;
 
             if (getGameHour(game) !== game.hour) {
                 game.hour = getGameHour(game);
                 if (game.hour >= 6) {
-                    game.state = 'won';
-                    io.to('game_' + game.id).emit('gameWon', getPublicState(game));
-                    return;
+                    game.state = 'won'; io.to('game_' + game.id).emit('gameWon', getPublicState(game)); return;
                 }
             }
 
             if (game.power > 0) {
-                let drain = BASE_POWER_DRAIN;
-                let closedDoors = 0;
-
+                let drain = BASE_POWER_DRAIN; let closedDoors = 0;
                 if (game.camerasUp) drain += CAMERA_POWER_DRAIN;
                 game.doors.forEach(d => { if (d.closed) { drain += DOOR_POWER_DRAIN; closedDoors++; } });
-
                 game.power -= drain * (delta / 1000);
-
+                
+                // Если энергия упала до 0% (естественный ноль)
                 if (game.power <= 0) {
                     game.power = 0; game.powerAtOut = 0; game.systemOff = true; game.isDeadPower = true;
                     game.camerasUp = false;
@@ -136,7 +124,7 @@ setInterval(() => {
                     io.to('game_' + game.id).emit('powerOut', getPublicState(game));
                 }
 
-                // ПЕРЕГРЕВ ДВЕРЕЙ (работает при 1+ закрытой двери)
+                // Перегрев дверей
                 if (game.settings.doorOverload && !game.overloadTripped) {
                     if (closedDoors >= 1) {
                         game.overloadLevel += (delta / 15000) * 100;
@@ -145,18 +133,17 @@ setInterval(() => {
                             game.doors.forEach(d => { d.closed = false; });
                             io.to('game_' + game.id).emit('overloadTripped', getPublicState(game));
                         }
-                    } else {
-                        game.overloadLevel = Math.max(0, game.overloadLevel - (delta / 5000) * 100);
-                    }
+                    } else { game.overloadLevel = Math.max(0, game.overloadLevel - (delta / 5000) * 100); }
                 }
             }
         } else {
-            // ВРЕМЯ ЗАМОРОЖЕНО, ЖДЕМ СКРИМЕР
-            if (game.powerOutTime && !game.rebootInProgress && !game.rebootApprovalNeeded) {
+            // КОГДА СВЕТ ВЫКЛЮЧЕН:
+            // 1. Время заморожено (activePlayTimeMs НЕ растет).
+            // 2. Таймер гибели запускается ТОЛЬКО если энергия кончилась насовсем (isDeadPower === true).
+            // 3. При саботаже аниматроника (isDeadPower === false) НИКАКОГО таймера нет!
+            if (game.isDeadPower && game.powerOutTime) {
                 if (now - game.powerOutTime > POWER_OUT_DEATH_TIME) {
-                    game.state = 'lost';
-                    io.to('game_' + game.id).emit('gameLost', { ...getPublicState(game), reason: 'power_out' });
-                    return;
+                    game.state = 'lost'; io.to('game_' + game.id).emit('gameLost', { ...getPublicState(game), reason: 'power_out' }); return;
                 }
             }
         }
@@ -167,7 +154,7 @@ setInterval(() => {
 io.on('connection', (socket) => {
     socket.on('createGame', (settings, cb) => {
         const game = createGame(settings); socket.join('game_' + game.id); socket.gameId = game.id;
-        const links = { guard: `/guard.html?game=${game.id}`, animatronic: `/animatronic.html?game=${game.id}`, cameras: Array.from({length: 8}, (_, i) => `/camera.html?game=${game.id}&cam=${i}`) };
+        const links = { guard: `/guard.html?game=${game.id}`, animatronic: `/animatronic.html?game=${game.id}`, cameras: Array.from({length:8}, (_,i)=>`/camera.html?game=${game.id}&cam=${i}`) };
         cb({ success: true, gameId: game.id, links, state: getPublicState(game) });
     });
 
@@ -203,16 +190,14 @@ io.on('connection', (socket) => {
     socket.on('toggleCameras', (gameId) => {
         const game = games[gameId];
         if (game && game.state === 'playing' && !game.systemOff && !game.overloadTripped) {
-            game.camerasUp = !game.camerasUp;
-            io.to('game_' + game.id).emit('camerasToggled', { camerasUp: game.camerasUp, state: getPublicState(game) });
+            game.camerasUp = !game.camerasUp; io.to('game_' + gameId).emit('camerasToggled', { camerasUp: game.camerasUp, state: getPublicState(game) });
         }
     });
 
     socket.on('switchCamera', ({ gameId, camIndex }) => {
         const game = games[gameId];
         if (game && game.state === 'playing' && !game.systemOff && game.camerasUp) {
-            game.currentCamera = camIndex;
-            io.to('game_' + game.id).emit('cameraSwitched', { currentCamera: camIndex, state: getPublicState(game) });
+            game.currentCamera = camIndex; io.to('game_' + gameId).emit('cameraSwitched', { currentCamera: camIndex, state: getPublicState(game) });
         }
     });
 
@@ -221,14 +206,14 @@ io.on('connection', (socket) => {
         if (game && game.state === 'playing' && !game.systemOff && !game.overloadTripped) {
             const door = game.doors[doorIndex]; if (door.animating) return;
             door.closed = !door.closed; door.animating = true;
-            io.to('game_' + game.id).emit('doorToggled', { doorIndex, closed: door.closed, state: getPublicState(game) });
-            setTimeout(() => { door.animating = false; io.to('game_' + game.id).emit('doorAnimDone', { doorIndex, state: getPublicState(game) }); }, door.closed ? DOOR_CLOSE_MS : DOOR_OPEN_MS);
+            io.to('game_' + gameId).emit('doorToggled', { doorIndex, closed: door.closed, state: getPublicState(game) });
+            setTimeout(() => { door.animating = false; io.to('game_' + gameId).emit('doorAnimDone', { doorIndex, state: getPublicState(game) }); }, door.closed ? DOOR_CLOSE_MS : DOOR_OPEN_MS);
         }
     });
 
     socket.on('resetBreaker', (gameId) => {
         const game = games[gameId];
-        if (game && game.overloadTripped) { game.overloadTripped = false; game.overloadLevel = 0; io.to('game_' + game.id).emit('breakerReset', getPublicState(game)); }
+        if (game && game.overloadTripped) { game.overloadTripped = false; game.overloadLevel = 0; io.to('game_' + gameId).emit('breakerReset', getPublicState(game)); }
     });
 
     socket.on('cameraFrame', ({ gameId, camIndex, frameData }) => {
@@ -242,8 +227,8 @@ io.on('connection', (socket) => {
         const game = games[gameId];
         if (game && game.state === 'playing') {
             game.cameras[camIndex].broken = true; game.cameras[camIndex].repairing = false;
-            io.to('game_' + game.id).emit('cameraBrokenNotify', { camIndex, state: getPublicState(game) });
-            io.to('game_' + game.id).emit('cameraBroken', { camIndex });
+            io.to('game_' + gameId).emit('cameraBrokenNotify', { camIndex, state: getPublicState(game) });
+            io.to('game_' + gameId).emit('cameraBroken', { camIndex });
         }
     });
 
@@ -251,24 +236,27 @@ io.on('connection', (socket) => {
         const game = games[gameId];
         if (game && game.cameras[camIndex].broken) {
             game.cameras[camIndex].repairing = true;
-            io.to('game_' + game.id).emit('cameraRepairing', { camIndex, state: getPublicState(game) });
+            io.to('game_' + gameId).emit('cameraRepairing', { camIndex, state: getPublicState(game) });
             setTimeout(() => {
                 if (games[gameId]) {
                     game.cameras[camIndex].broken = false; game.cameras[camIndex].repairing = false;
-                    io.to('game_' + game.id).emit('cameraRepaired', { camIndex });
-                    io.to('game_' + game.id).emit('cameraRepairedNotify', { camIndex, state: getPublicState(game) });
+                    io.to('game_' + gameId).emit('cameraRepaired', { camIndex }); io.to('game_' + gameId).emit('cameraRepairedNotify', { camIndex, state: getPublicState(game) });
                 }
             }, 20000);
         }
     });
 
+    // АНИМАТРОНИК ОТКЛЮЧАЕТ СВЕТ
     socket.on('killPower', ({ gameId }) => {
         const game = games[gameId];
         if (game && game.state === 'playing' && !game.systemOff) {
-            game.powerAtOut = game.power; game.systemOff = true; game.isDeadPower = false; 
-            game.camerasUp = false; game.doors.forEach(d => { d.closed = false; d.animating = false; });
-            game.powerOutTime = Date.now();
-            io.to('game_' + game.id).emit('powerOut', getPublicState(game));
+            game.powerAtOut = game.power; 
+            game.systemOff = true; 
+            game.isDeadPower = false; // САБОТАЖ: таймер смерти ОТКЛЮЧЁН!
+            game.camerasUp = false; 
+            game.doors.forEach(d => { d.closed = false; d.animating = false; });
+            game.powerOutTime = Date.now(); 
+            io.to('game_' + gameId).emit('powerOut', getPublicState(game));
         }
     });
 
@@ -276,22 +264,16 @@ io.on('connection', (socket) => {
         const game = games[gameId];
         if (!game || game.state !== 'playing' || !game.systemOff || game.rebootInProgress || game.isDeadPower) return;
         game.rebootInProgress = true; game.rebootStartTime = Date.now();
-        io.to('game_' + game.id).emit('rebootStarted', getPublicState(game));
-        setTimeout(() => {
-            if (game.state === 'playing') {
-                game.rebootApprovalNeeded = true;
-                io.to('game_' + game.id).emit('rebootWaitingApproval', getPublicState(game));
-            }
-        }, REBOOT_TIME);
+        io.to('game_' + gameId).emit('rebootStarted', getPublicState(game));
+        setTimeout(() => { if (game.state === 'playing') { game.rebootApprovalNeeded = true; io.to('game_' + gameId).emit('rebootWaitingApproval', getPublicState(game)); } }, REBOOT_TIME);
     });
 
     socket.on('approveReboot', ({ gameId }) => {
         const game = games[gameId];
         if (game && game.state === 'playing') {
             game.systemOff = false; game.rebootInProgress = false; game.rebootApprovalNeeded = false; game.powerOutTime = null;
-            game.power = Math.max(1, game.powerAtOut - 5); // Штраф -5%
-            game.lastTickTime = Date.now(); // Разморозка времени
-            io.to('game_' + game.id).emit('rebootApproved', getPublicState(game));
+            game.power = Math.max(1, game.powerAtOut - 5); game.lastTickTime = Date.now(); 
+            io.to('game_' + gameId).emit('rebootApproved', getPublicState(game));
         }
     });
 
@@ -299,20 +281,15 @@ io.on('connection', (socket) => {
         const game = games[gameId];
         if (game && game.state === 'playing') {
             game.rebootInProgress = false; game.rebootApprovalNeeded = false;
-            io.to('game_' + game.id).emit('rebootDenied', getPublicState(game));
+            io.to('game_' + gameId).emit('rebootDenied', getPublicState(game));
         }
     });
 
     socket.on('jumpscare', ({ gameId }) => {
         const game = games[gameId];
         if (game && game.state === 'playing') {
-            game.state = 'lost';
-            io.to('game_' + game.id).emit('gameLost', { ...getPublicState(game), reason: 'jumpscare' });
+            game.state = 'lost'; io.to('game_' + gameId).emit('gameLost', { ...getPublicState(game), reason: 'jumpscare' });
         }
-    });
-
-    socket.on('phoneCallDone', (gameId) => {
-        const game = games[gameId]; if (game) game.phoneCallDone = true;
     });
 
     socket.on('disconnect', () => {

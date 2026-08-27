@@ -21,12 +21,11 @@ const brokenFull = document.getElementById('brokenFull');
 
 function au(src, loop, vol) {
     const a = new Audio(); a.loop = !!loop; a.volume = vol !== undefined ? vol : 0.4;
-    a.onerror = () => { console.warn('Audio failed:', src); }; a.src = src; return a;
+    a.src = src; return a;
 }
 
-// 🔊 ВСЕ ЗВУКИ КАМЕРЫ С РАБОЧИМИ ССЫЛКАМИ (БЕЗ 13m0my.mp3)
 const snd = {
-    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.5),
+    nightStart: au('https://files.catbox.moe/8y8z75.mp3', false, 0.5),
     winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.5),
     camUp:      au('https://files.catbox.moe/d8qyqe.mp3', false, 0.4),
     camDown:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.4),
@@ -38,8 +37,7 @@ const snd = {
     pwrOut:     au('https://files.catbox.moe/hvxd67.mp3', false, 0.6),
     pwrOn:      au('https://files.catbox.moe/zuy3mk.mp3', false, 0.6),
     scare:      au('https://files.catbox.moe/bfucts.mp3', false, 0.9),
-    win:        au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7), // РАБОЧАЯ ЗАМЕНА
-    distraction: au('https://files.catbox.moe/xrln60.mp3', false, 1.0)
+    win:        au('https://files.catbox.moe/zuy3mk.mp3', false, 0.7)
 };
 
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
@@ -112,10 +110,7 @@ function triggerBrokenState() {
     play(snd.camBroken); play(snd.noise);
 }
 
-socket.on('playDistractionSound', () => { play(snd.distraction); });
-
 socket.on('cameraBroken', (data) => { if (data && typeof data.camIndex === 'number' && data.camIndex !== camIndex) return; triggerBrokenState(); });
-
 socket.on('cameraRepaired', (data) => {
     if (data && typeof data.camIndex === 'number' && data.camIndex !== camIndex) return;
     broken = false; repairing = false;
@@ -138,19 +133,7 @@ socket.on('cameraSwitched', () => { play(snd.camSw); });
 socket.on('doorToggled', d => { if (d.closed) play(snd.dClose); else play(snd.dOpen); });
 socket.on('powerOut', () => { stop(snd.nightStart); play(snd.pwrOut); });
 socket.on('rebootApproved', () => { play(snd.pwrOn); });
-
-socket.on('gameWon', () => {
-    streaming = false; if (sendTimer) clearInterval(sendTimer);
-    stop(snd.noise); stop(snd.nightStart); play(snd.win);
-    const we = document.getElementById('winEnd'); if (we) we.classList.add('on');
-    snd.win.onended = () => { play(snd.winMelody); };
-});
-
-socket.on('gameLost', () => {
-    streaming = false; if (sendTimer) clearInterval(sendTimer);
-    stop(snd.noise); stop(snd.nightStart); play(snd.scare);
-    const le = document.getElementById('loseEnd'); if (le) le.classList.add('on');
-});
-
+socket.on('gameWon', () => { streaming = false; if (sendTimer) clearInterval(sendTimer); stop(snd.noise); stop(snd.nightStart); play(snd.win); const we = document.getElementById('winEnd'); if (we) we.classList.add('on'); snd.win.onended = () => { play(snd.winMelody); }; });
+socket.on('gameLost', () => { streaming = false; if (sendTimer) clearInterval(sendTimer); stop(snd.noise); stop(snd.nightStart); play(snd.scare); const le = document.getElementById('loseEnd'); if (le) le.classList.add('on'); });
 socket.on('gameStarted', () => { play(snd.nightStart); });
 })();

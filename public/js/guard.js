@@ -6,13 +6,13 @@ const gameId = params.get('game');
 if (!gameId) { document.body.innerHTML = '<div style="color:red;padding:40px;font-size:1.5rem;font-family:monospace;">No game ID.</div>'; return; }
 
 let S = null; let mode = 1; let camsUp = false; let curCam = 0; let rebooting = false; let rebootT0 = 0;
+let gameStartedHandled = false;
 
 function au(src, loop, vol) {
     const a = new Audio(); a.loop = !!loop; a.volume = vol !== undefined ? vol : 0.4;
     a.src = src; return a;
 }
 
- // 📞 ТВОИ ЗВОНКИ ФОНГАЯ С РАСШИРЕНИЕМ .OGG
 const PHONE_CALL_URLS = {
     1: 'https://files.catbox.moe/9hb3et.ogg',
     2: 'https://files.catbox.moe/8kk4je.ogg',
@@ -21,9 +21,8 @@ const PHONE_CALL_URLS = {
     5: 'https://files.catbox.moe/8kk4je.ogg'
 };
 
-// 🔊 ТВОИ .OGG И .MP3 ФАЙЛЫ
 const snd = {
-    nightStart: au('https://files.catbox.moe/x39e6b.ogg', false, 0.6),
+    nightStart: au('https://files.catbox.moe/8y8z75.mp3', false, 0.6),
     winMelody:  au('https://files.catbox.moe/esjta4.ogg', false, 0.6),
     amb:      au('https://files.catbox.moe/ad5yrw.mp3', true, 0.2),
     camUp:    au('https://files.catbox.moe/d8qyqe.mp3', false, 0.5),
@@ -39,22 +38,16 @@ const snd = {
     phone:    null
 };
 
-
 function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(()=>{}); } catch(e) {} }
 function stop(a) { if (!a) return; try { a.pause(); a.currentTime = 0; } catch(e) {} }
 
-function unlockAllAudio() {
-    const unlockDiv = document.getElementById('audioUnlock');
-    if (unlockDiv) unlockDiv.style.display = 'none';
-    try {
-        snd.amb.play().then(() => { if (!S || S.state !== 'playing') snd.amb.pause(); }).catch(()=>{});
-    } catch(e) {}
-}
-
+// РАЗБЛОКИРОВКА АУДИО
 const audioUnlock = document.getElementById('audioUnlock');
 if (audioUnlock) {
-    audioUnlock.addEventListener('click', unlockAllAudio);
-    audioUnlock.addEventListener('touchstart', unlockAllAudio);
+    audioUnlock.addEventListener('click', function() {
+        this.style.display = 'none';
+        try { snd.amb.play().then(() => { if (!S || S.state !== 'playing') snd.amb.pause(); }).catch(()=>{}); } catch(e) {}
+    });
 }
 
 const canvas = document.getElementById('camCanvas');
@@ -69,9 +62,19 @@ window.toggleFullScreen = function() {
 
 window.resetBreaker = function() { socket.emit('resetBreaker', gameId); };
 
+function handleStartGame(st) {
+    if (gameStartedHandled) return;
+    gameStartedHandled = true;
+    S = st; mode = st.mode; updateUI();
+    play(snd.nightStart);
+    play(snd.amb); // Запуск фона
+    setTimeout(() => { if (S && S.state === 'playing' && !S.systemOff) playPhone(st.night || 1); }, 2500);
+}
+
 socket.emit('joinAsGuard', gameId, res => {
     if (!res || !res.success) return;
     S = res.state; mode = S.mode; init();
+    if (S.state === 'playing') handleStartGame(S);
 });
 
 function init() {
@@ -117,7 +120,6 @@ function buildTouchBar() {
     const count = S ? S.doorCount : 2;
     for(let i = 0; i < count; i++) { h += `<div class="touch-btn" id="tDoor${i}">🚪 DOOR ${i+1}</div>`; }
     bar.innerHTML = h;
-
     const camBtn = document.getElementById('tCam');
     if (camBtn) { camBtn.addEventListener('click', toggleCams); camBtn.addEventListener('touchend', e => { e.preventDefault(); toggleCams(); }); }
     for(let i = 0; i < count; i++) {
@@ -128,18 +130,16 @@ function buildTouchBar() {
 
 function toggleCams() { socket.emit('toggleCameras', gameId); }
 function switchCam(i) { socket.emit('switchCamera', { gameId, camIndex: i }); }
-
 function doReboot() {
     if (!S || !S.systemOff || rebooting || S.isDeadPower) return;
-    rebooting = true; rebootT0 = Date.now();
-    socket.emit('startReboot', gameId);
+    rebooting = true; rebootT0 = Date.now(); socket.emit('startReboot', gameId);
 }
 
 const bigRb = document.getElementById('bigRebootBtn');
 if (bigRb) { bigRb.addEventListener('click', doReboot); bigRb.addEventListener('touchend', e => { e.preventDefault(); doReboot(); }); }
 
 document.addEventListener('keydown', e => {
-    if (!S || S.state !== 'playing') return;
+    if (!S || S.state !== 'playing' || e.repeat) return; // e.repeat блокирует зажатие пробела
     const k = e.code;
     if (k === 'Space') { e.preventDefault(); toggleCams(); }
     else if (k === 'Digit1' || k === 'Numpad1') switchCam(0);
@@ -156,24 +156,12 @@ document.addEventListener('keydown', e => {
     else if (k === 'KeyH') doReboot();
 });
 
-socket.on('gameStarted', st => {
-    S = st; mode = st.mode; updateUI();
-    
-    play(snd.nightStart);
-    play(snd.amb);
-
-    setTimeout(() => {
-        if (S && S.state === 'playing' && !S.systemOff) {
-            playPhone(st.night || 1);
-        }
-    }, 2500);
-});
-
+socket.on('gameStarted', st => { handleStartGame(st); });
 socket.on('gameState', st => { S = st; updateUI(); });
-
 socket.on('camerasToggled', d => { S = d.state; camsUp = d.camerasUp; updateCamView(); if (camsUp) play(snd.camUp); else play(snd.camDown); });
 socket.on('cameraSwitched', d => { S = d.state; curCam = d.currentCamera; updateCamView(); play(snd.camSw); });
 
+// АНИМАЦИИ МИНИ-ДВЕРЕЙ
 socket.on('doorToggled', d => {
     S = d.state; const miniFrame = document.getElementById('miniDoor' + d.doorIndex); const tBtn = document.getElementById('tDoor' + d.doorIndex);
     if (miniFrame) {
@@ -183,7 +171,6 @@ socket.on('doorToggled', d => {
     }
     if (tBtn) tBtn.classList.toggle('door-closed', d.closed);
 });
-
 socket.on('doorAnimDone', d => {
     S = d.state;
     if (d.state && d.state.doors) {
@@ -339,14 +326,11 @@ function animReboot() {
 function doFlash() { const f = document.getElementById('flash'); if (!f) return; f.classList.add('pop'); setTimeout(() => f.classList.remove('pop'), 120); }
 
 function playPhone(night) {
-    const nightNum = night || (S && S.night) || 1;
-    const callUrl = PHONE_CALL_URLS[nightNum] || PHONE_CALL_URLS[1];
+    const callUrl = PHONE_CALL_URLS[night];
     if (!callUrl) return;
     const muteBtn = document.getElementById('muteCallBtn'); if (muteBtn) muteBtn.style.display = 'block';
     
-    if (snd.phone) stop(snd.phone);
     snd.phone = au(callUrl, false, 0.7);
-
     play(snd.phone);
 
     snd.phone.onended = () => { if (muteBtn) muteBtn.style.display = 'none'; socket.emit('phoneCallDone', gameId); };

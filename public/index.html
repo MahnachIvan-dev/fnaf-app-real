@@ -19,35 +19,19 @@
         <div class="panel">
             <div class="row">
                 <span class="row-label">MODE</span>
-                <select id="cfgMode">
-                    <option value="1">1 — Monitor Only</option>
-                    <option value="2">2 — Office + Monitor</option>
-                </select>
+                <select id="cfgMode"><option value="1">1 — Monitor Only</option><option value="2">2 — Office + Monitor</option></select>
             </div>
             <div class="row">
                 <span class="row-label">DOORS</span>
-                <select id="cfgDoors">
-                    <option value="1">1</option>
-                    <option value="2" selected>2</option>
-                    <option value="3">3</option>
-                </select>
+                <select id="cfgDoors"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select>
             </div>
             <div class="row">
                 <span class="row-label">NIGHT</span>
-                <select id="cfgNight">
-                    <option value="1">Night 1</option>
-                    <option value="2">Night 2</option>
-                    <option value="3">Night 3</option>
-                    <option value="4">Night 4</option>
-                    <option value="5">Night 5</option>
-                </select>
+                <select id="cfgNight"><option value="1">Night 1</option><option value="2">Night 2</option><option value="3">Night 3</option><option value="4">Night 4</option><option value="5">Night 5</option></select>
             </div>
             <div class="row" style="border-top: 2px dashed var(--yellow); margin-top:10px; padding-top:15px;">
                 <span class="row-label" style="color:var(--yellow);">DOOR OVERLOAD:</span>
-                <select id="cfgOverload" style="border-color:var(--yellow); color:var(--yellow);">
-                    <option value="true" selected>ON (Anti-Camper)</option>
-                    <option value="false">OFF</option>
-                </select>
+                <select id="cfgOverload" style="border-color:var(--yellow); color:var(--yellow);"><option value="true" selected>ON (Anti-Camper)</option><option value="false">OFF</option></select>
             </div>
             <div style="text-align:center; margin-top:18px;">
                 <button class="btn" onclick="doCreate()">CREATE</button>
@@ -60,9 +44,7 @@
         <div class="title title-med">GAME LOBBY</div>
         <div class="night-label" id="lblNight"></div>
         <div style="font-size:1.5rem; color:var(--yellow); margin:8px 0;" id="lblGameId"></div>
-
         <div class="links-box panel" id="linksBox"></div>
-
         <div style="margin-top:15px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
             <button class="btn" id="btnStart" onclick="doStart()" disabled>▶ START NIGHT</button>
             <button class="btn yellow" onclick="openGuard()">OPEN GUARD</button>
@@ -71,47 +53,27 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
-        let G = null;
+        const socket = io(); let G = null;
         function showScreen(id) { document.querySelectorAll('.page-center').forEach(el => el.style.display = 'none'); document.getElementById(id).style.display = 'flex'; }
         function doCreate() {
-            const s = {
-                mode: +document.getElementById('cfgMode').value,
-                doorCount: +document.getElementById('cfgDoors').value,
-                night: +document.getElementById('cfgNight').value,
-                doorOverload: document.getElementById('cfgOverload').value === 'true'
-            };
-            socket.emit('createGame', s, res => {
-                if (!res.success) return alert('Error');
-                G = res; showScreen('scrLobby'); renderLobby();
-            });
+            const s = { mode: +document.getElementById('cfgMode').value, doorCount: +document.getElementById('cfgDoors').value, night: +document.getElementById('cfgNight').value, doorOverload: document.getElementById('cfgOverload').value === 'true' };
+            socket.emit('createGame', s, res => { if (!res.success) return alert('Error'); G = res; showScreen('scrLobby'); renderLobby(); });
         }
         function renderLobby() {
-            document.getElementById('lblNight').textContent = 'Night ' + G.state.night;
-            document.getElementById('lblGameId').textContent = 'ID: ' + G.gameId;
-            const base = location.origin; let h = '';
-            h += linkRow('🛡️ GUARD', G.links.guard);
+            document.getElementById('lblNight').textContent = 'Night ' + G.state.night; document.getElementById('lblGameId').textContent = 'ID: ' + G.gameId;
+            let h = linkRow('🛡️ GUARD', G.links.guard);
             G.links.cameras.forEach((l, i) => { const on = G.state.cameras[i] && G.state.cameras[i].connected; h += linkRow('📷 CAM ' + (i+1), l, 'cam' + i, on); });
             h += linkRow('🤖 ANIMATRONIC', G.links.animatronic, 'anim', false);
-            document.getElementById('linksBox').innerHTML = h;
-            checkReady(G.state);
+            document.getElementById('linksBox').innerHTML = h; checkReady(G.state);
         }
         function linkRow(name, path, statusId, on) {
-            const full = location.origin + path;
-            const cls = on ? 'on' : 'off';
-            const txt = on ? '✓ ONLINE' : '✗ WAITING';
-            const s = statusId ? `<span class="link-status ${cls}" id="ls_${statusId}">${txt}</span>` : '';
+            const full = location.origin + path; const cls = on ? 'on' : 'off'; const txt = on ? '✓ ONLINE' : '✗ WAITING'; const s = statusId ? `<span class="link-status ${cls}" id="ls_${statusId}">${txt}</span>` : '';
             return `<div class="link-row"><span>${name}</span><a href="${path}" target="_blank">${full}</a>${s}<button class="copy-btn" onclick="copyTxt('${full}')">COPY</button></div>`;
         }
-        function copyTxt(t) {
-            navigator.clipboard.writeText(t).catch(() => {
-                const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            });
-        }
+        function copyTxt(t) { navigator.clipboard.writeText(t).catch(() => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }); }
         function checkReady(st) { document.getElementById('btnStart').disabled = !(st.cameras && st.cameras.some(c => c.connected)); }
         function doStart() { if (G) socket.emit('startGame', G.gameId); }
         function openGuard() { if (G) window.open(G.links.guard, '_blank'); }
-
         socket.on('cameraConnected', d => { const el = document.getElementById('ls_cam' + d.camIndex); if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; } checkReady(d.state); });
         socket.on('animatronicConnected', () => { const el = document.getElementById('ls_anim'); if (el) { el.textContent = '✓ ONLINE'; el.className = 'link-status on'; } });
         socket.on('gameState', d => checkReady(d));
